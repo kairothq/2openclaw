@@ -1,38 +1,72 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, Suspense, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-type Step = 'telegram' | 'token' | 'userid' | 'ai' | 'deploy' | 'done'
+type Step = 'email' | 'telegram' | 'token' | 'userid' | 'ai' | 'plan' | 'payment' | 'deploy' | 'done'
+
+const STEPS = ['email', 'telegram', 'token', 'userid', 'ai', 'plan', 'payment', 'deploy', 'done']
+
+const PLANS = [
+  { id: 'free', name: 'Free Trial', price: '₹0', period: '7 days', features: ['1.5GB RAM', 'Basic Support', 'Single Bot'] },
+  { id: 'starter', name: 'Starter', price: '₹199', period: '/month', features: ['1.5GB RAM', 'Priority Support', 'Single Bot'], popular: false },
+  { id: 'pro', name: 'Pro', price: '₹499', period: '/month', features: ['3GB RAM', 'Priority Support', 'Custom Prompts'], popular: true },
+  { id: 'business', name: 'Business', price: '₹1,499', period: '/month', features: ['4GB RAM', 'Custom Domain', 'Priority Support'] }
+]
+
+declare global {
+  interface Window {
+    Razorpay: any
+  }
+}
 
 function OnboardContent() {
   const searchParams = useSearchParams()
-  const plan = searchParams.get('plan') || 'free'
-  
-  const [step, setStep] = useState<Step>('telegram')
+  const initialPlan = searchParams.get('plan') || 'free'
+
+  const [step, setStep] = useState<Step>('email')
+  const [email, setEmail] = useState('')
   const [telegramToken, setTelegramToken] = useState('')
   const [telegramUserId, setTelegramUserId] = useState('')
   const [aiProvider, setAiProvider] = useState('openrouter')
   const [apiKey, setApiKey] = useState('')
+  const [selectedPlan, setSelectedPlan] = useState(initialPlan)
   const [isValidating, setIsValidating] = useState(false)
   const [isDeploying, setIsDeploying] = useState(false)
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ userId: string; subdomain: string; url: string } | null>(null)
   const [botInfo, setBotInfo] = useState<{ username: string } | null>(null)
+  const [userId, setUserId] = useState('')
+
+  // Load Razorpay script
+  useEffect(() => {
+    const script = document.createElement('script')
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+    script.async = true
+    document.body.appendChild(script)
+    return () => {
+      document.body.removeChild(script)
+    }
+  }, [])
+
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  }
 
   const validateToken = async () => {
     setIsValidating(true)
     setError('')
-    
+
     try {
       const res = await fetch('/api/validate-telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: telegramToken })
       })
-      
+
       const data = await res.json()
-      
+
       if (data.valid) {
         setBotInfo(data.bot)
         setStep('userid')
@@ -46,10 +80,128 @@ function OnboardContent() {
     }
   }
 
+  const handlePlanContinue = async () => {
+    if (selectedPlan === 'free') {
+      // Free plan - go straight to deploy
+      setStep('deploy')
+    } else {
+      // Paid plan - go to payment
+      setStep('payment')
+    }
+  }
+
+  const initiatePayment = async () => {
+    setIsProcessingPayment(true)
+    setError('')
+
+    try {
+      // First, provision the instance (creates user record)
+      const provisionRes = await fetch('/api/provision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegramToken,
+          telegramUserId,
+          aiProvider,
+          apiKey,
+          email,
+          plan: selectedPlan
+        })
+      })
+
+      const provisionData = await provisionRes.json()
+
+      if (!provisionData.success) {
+        setError(provisionData.error || 'Failed to create instance')
+        setIsProcessingPayment(false)
+        return
+      }
+
+      setUserId(provisionData.userId)
+
+      // Create subscription
+      const subRes = await fetch('/api/subscriptions/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: provisionData.userId,
+          email,
+          planId: selectedPlan,
+          name: email.split('@')[0]
+        })
+      })
+
+      const subData = await subRes.json()
+
+      if (!subData.success) {
+        setError(subData.error || 'Failed to create subscription')
+        setIsProcessingPayment(false)
+        return
+      }
+
+      // Open Razorpay Checkout
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        subscription_id: subData.subscriptionId,
+        name: '2OpenClaw',
+        description: `${PLANS.find(p => p.id === selectedPlan)?.name} Plan`,
+        image: '/logo.png',
+        handler: async function (response: any) {
+          // Verify payment
+          const verifyRes = await fetch('/api/subscriptions/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_subscription_id: response.razorpay_subscription_id,
+              razorpay_signature: response.razorpay_signature
+            })
+          })
+
+          const verifyData = await verifyRes.json()
+
+          if (verifyData.verified) {
+            // Save to localStorage
+            localStorage.setItem('startclaw_instance', JSON.stringify({
+              userId: provisionData.userId,
+              botUsername: botInfo?.username,
+              subdomain: provisionData.subdomain,
+              url: provisionData.url
+            }))
+            setResult(provisionData)
+            setStep('done')
+          } else {
+            setError('Payment verification failed. Please contact support.')
+          }
+          setIsProcessingPayment(false)
+        },
+        prefill: {
+          email: email
+        },
+        theme: {
+          color: '#f97316'
+        },
+        modal: {
+          ondismiss: function() {
+            setIsProcessingPayment(false)
+            setError('Payment was cancelled. You can try again.')
+          }
+        }
+      }
+
+      const razorpay = new window.Razorpay(options)
+      razorpay.open()
+    } catch (e) {
+      console.error('Payment error:', e)
+      setError('Failed to process payment. Please try again.')
+      setIsProcessingPayment(false)
+    }
+  }
+
   const deploy = async () => {
     setIsDeploying(true)
     setError('')
-    
+
     try {
       const res = await fetch('/api/provision', {
         method: 'POST',
@@ -59,14 +211,14 @@ function OnboardContent() {
           telegramUserId,
           aiProvider,
           apiKey,
-          plan
+          email,
+          plan: 'free'
         })
       })
-      
+
       const data = await res.json()
-      
+
       if (data.success) {
-        // Save to localStorage for dashboard
         localStorage.setItem('startclaw_instance', JSON.stringify({
           userId: data.userId,
           botUsername: botInfo?.username,
@@ -85,6 +237,9 @@ function OnboardContent() {
     }
   }
 
+  const currentStepIndex = STEPS.indexOf(step)
+  const isPaidPlan = selectedPlan !== 'free'
+
   return (
     <div className="mx-auto max-w-2xl">
       {/* Header */}
@@ -92,33 +247,79 @@ function OnboardContent() {
         <div className="text-5xl mb-4">🦞</div>
         <h1 className="text-3xl font-bold">Deploy Your AI Assistant</h1>
         <p className="text-gray-400 mt-2">
-          {plan === 'free' ? '7-day free trial' : `${plan.charAt(0).toUpperCase() + plan.slice(1)} plan`}
+          {selectedPlan === 'free' ? '7-day free trial' : `${PLANS.find(p => p.id === selectedPlan)?.name} Plan`}
         </p>
       </div>
-      
+
       {/* Progress */}
-      <div className="flex items-center justify-center gap-2 mb-12">
-        {['telegram', 'token', 'userid', 'ai', 'deploy', 'done'].map((s, i) => (
+      <div className="flex items-center justify-center gap-1 mb-12 overflow-x-auto">
+        {STEPS.filter(s => isPaidPlan || s !== 'payment').map((s, i) => (
           <div key={s} className="flex items-center">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-              step === s ? 'bg-lobster-500' : 
-              ['telegram', 'token', 'userid', 'ai', 'deploy', 'done'].indexOf(step) > i ? 'bg-green-500' : 'bg-gray-800'
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+              step === s ? 'bg-lobster-500' :
+              currentStepIndex > STEPS.indexOf(s) ? 'bg-green-500' : 'bg-gray-800'
             }`}>
-              {['telegram', 'token', 'userid', 'ai', 'deploy', 'done'].indexOf(step) > i ? '✓' : i + 1}
+              {currentStepIndex > STEPS.indexOf(s) ? '✓' : i + 1}
             </div>
-            {i < 5 && <div className="w-8 h-0.5 bg-gray-800" />}
+            {i < (isPaidPlan ? STEPS.length - 1 : STEPS.length - 2) && <div className="w-6 h-0.5 bg-gray-800" />}
           </div>
         ))}
       </div>
 
       {/* Step Content */}
       <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800">
-        
-        {/* Step 1: Create Telegram Bot */}
+
+        {/* Step 1: Email */}
+        {step === 'email' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">Step 1: Your Email</h2>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-lobster-500"
+                />
+                <p className="text-sm text-gray-500 mt-2">
+                  We'll send deployment updates and payment receipts here
+                </p>
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/50 rounded-lg px-4 py-3 text-red-400">
+                  {error}
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  if (!validateEmail(email)) {
+                    setError('Please enter a valid email address')
+                    return
+                  }
+                  setError('')
+                  setStep('telegram')
+                }}
+                disabled={!email}
+                className="w-full bg-lobster-500 py-3 rounded-lg font-semibold hover:bg-lobster-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Continue →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Create Telegram Bot */}
         {step === 'telegram' && (
           <div>
-            <h2 className="text-2xl font-bold mb-6">Step 1: Create Telegram Bot</h2>
-            
+            <h2 className="text-2xl font-bold mb-6">Step 2: Create Telegram Bot</h2>
+
             <div className="space-y-6">
               <div className="bg-gray-800 rounded-xl p-6">
                 <h3 className="font-semibold mb-4">Follow these steps:</h3>
@@ -145,31 +346,39 @@ function OnboardContent() {
                   </li>
                 </ol>
               </div>
-              
-              <a 
-                href="https://t.me/BotFather" 
-                target="_blank" 
+
+              <a
+                href="https://t.me/BotFather"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full bg-blue-500 text-white py-3 rounded-lg text-center font-semibold hover:bg-blue-400 transition-colors"
               >
                 Open @BotFather →
               </a>
-              
-              <button
-                onClick={() => setStep('token')}
-                className="block w-full bg-lobster-500 py-3 rounded-lg font-semibold hover:bg-lobster-400 transition-colors"
-              >
-                I have my token →
-              </button>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setStep('email')}
+                  className="px-6 py-3 rounded-lg border border-gray-700 hover:bg-gray-800 transition-colors"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={() => setStep('token')}
+                  className="flex-1 bg-lobster-500 py-3 rounded-lg font-semibold hover:bg-lobster-400 transition-colors"
+                >
+                  I have my token →
+                </button>
+              </div>
             </div>
           </div>
         )}
-        
-        {/* Step 2: Enter Token */}
+
+        {/* Step 3: Enter Token */}
         {step === 'token' && (
           <div>
-            <h2 className="text-2xl font-bold mb-6">Step 2: Enter Your Bot Token</h2>
-            
+            <h2 className="text-2xl font-bold mb-6">Step 3: Enter Your Bot Token</h2>
+
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2">
@@ -186,13 +395,13 @@ function OnboardContent() {
                   Paste the token you received from @BotFather
                 </p>
               </div>
-              
+
               {error && (
                 <div className="bg-red-500/10 border border-red-500/50 rounded-lg px-4 py-3 text-red-400">
                   {error}
                 </div>
               )}
-              
+
               <div className="flex gap-4">
                 <button
                   onClick={() => setStep('telegram')}
@@ -211,15 +420,15 @@ function OnboardContent() {
             </div>
           </div>
         )}
-        
-        {/* Step 3: Your Telegram ID */}
+
+        {/* Step 4: Your Telegram ID */}
         {step === 'userid' && (
           <div>
-            <h2 className="text-2xl font-bold mb-2">Step 3: Your Telegram ID</h2>
+            <h2 className="text-2xl font-bold mb-2">Step 4: Your Telegram ID</h2>
             {botInfo && (
               <p className="text-green-400 mb-6">✓ Bot validated: @{botInfo.username}</p>
             )}
-            
+
             <div className="space-y-6">
               <div className="bg-gray-800 rounded-xl p-6">
                 <h3 className="font-semibold mb-4">How to get your Telegram ID:</h3>
@@ -238,16 +447,16 @@ function OnboardContent() {
                   </li>
                 </ol>
               </div>
-              
-              <a 
-                href="https://t.me/userinfobot" 
-                target="_blank" 
+
+              <a
+                href="https://t.me/userinfobot"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full bg-blue-500 text-white py-3 rounded-lg text-center font-semibold hover:bg-blue-400 transition-colors"
               >
                 Open @userinfobot →
               </a>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2">
                   Your Telegram User ID
@@ -263,7 +472,7 @@ function OnboardContent() {
                   This ensures only YOU can chat with your bot
                 </p>
               </div>
-              
+
               <div className="flex gap-4">
                 <button
                   onClick={() => setStep('token')}
@@ -282,15 +491,15 @@ function OnboardContent() {
             </div>
           </div>
         )}
-        
-        {/* Step 4: Choose AI */}
+
+        {/* Step 5: Choose AI */}
         {step === 'ai' && (
           <div>
-            <h2 className="text-2xl font-bold mb-2">Step 4: Choose Your AI</h2>
+            <h2 className="text-2xl font-bold mb-2">Step 5: Choose Your AI</h2>
             {botInfo && (
               <p className="text-green-400 mb-6">✓ Bot validated: @{botInfo.username}</p>
             )}
-            
+
             <div className="space-y-6">
               <div className="space-y-3">
                 {[
@@ -304,8 +513,8 @@ function OnboardContent() {
                     key={provider.id}
                     onClick={() => setAiProvider(provider.id)}
                     className={`w-full text-left p-4 rounded-xl border ${
-                      aiProvider === provider.id 
-                        ? 'border-lobster-500 bg-lobster-500/10' 
+                      aiProvider === provider.id
+                        ? 'border-lobster-500 bg-lobster-500/10'
                         : 'border-gray-700 hover:border-gray-600'
                     } transition-colors`}
                   >
@@ -323,7 +532,7 @@ function OnboardContent() {
                   </button>
                 ))}
               </div>
-              
+
               {/* OpenRouter instructions */}
               {aiProvider === 'openrouter' && (
                 <div className="bg-gray-800 rounded-xl p-6">
@@ -347,7 +556,7 @@ function OnboardContent() {
                   </p>
                 </div>
               )}
-              
+
               {/* Gemini instructions */}
               {aiProvider === 'gemini' && (
                 <div className="bg-gray-800 rounded-xl p-6">
@@ -368,14 +577,14 @@ function OnboardContent() {
                   </ol>
                 </div>
               )}
-              
+
               {/* API Key input for providers that need it */}
               {(aiProvider === 'openrouter' || aiProvider === 'gemini' || aiProvider === 'anthropic' || aiProvider === 'openai' || aiProvider === 'groq') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">
-                    {aiProvider === 'openrouter' ? 'OpenRouter' : 
+                    {aiProvider === 'openrouter' ? 'OpenRouter' :
                      aiProvider === 'gemini' ? 'Gemini' :
-                     aiProvider === 'anthropic' ? 'Anthropic' : 
+                     aiProvider === 'anthropic' ? 'Anthropic' :
                      aiProvider === 'groq' ? 'Groq' : 'OpenAI'} API Key
                   </label>
                   <input
@@ -385,14 +594,14 @@ function OnboardContent() {
                     placeholder={
                       aiProvider === 'openrouter' ? 'sk-or-v1-...' :
                       aiProvider === 'gemini' ? 'AIza...' :
-                      aiProvider === 'anthropic' ? 'sk-ant-...' : 
+                      aiProvider === 'anthropic' ? 'sk-ant-...' :
                       aiProvider === 'groq' ? 'gsk_...' : 'sk-...'
                     }
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-lobster-500"
                   />
                 </div>
               )}
-              
+
               <div className="flex gap-4">
                 <button
                   onClick={() => setStep('userid')}
@@ -401,7 +610,7 @@ function OnboardContent() {
                   ← Back
                 </button>
                 <button
-                  onClick={() => setStep('deploy')}
+                  onClick={() => setStep('plan')}
                   disabled={!apiKey}
                   className="flex-1 bg-lobster-500 py-3 rounded-lg font-semibold hover:bg-lobster-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -411,43 +620,181 @@ function OnboardContent() {
             </div>
           </div>
         )}
-        
-        {/* Step 5: Deploy */}
+
+        {/* Step 6: Choose Plan */}
+        {step === 'plan' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">Step 6: Choose Your Plan</h2>
+
+            <div className="space-y-6">
+              <div className="grid gap-4">
+                {PLANS.map((plan) => (
+                  <button
+                    key={plan.id}
+                    onClick={() => setSelectedPlan(plan.id)}
+                    className={`w-full text-left p-4 rounded-xl border ${
+                      selectedPlan === plan.id
+                        ? 'border-lobster-500 bg-lobster-500/10'
+                        : 'border-gray-700 hover:border-gray-600'
+                    } transition-colors relative`}
+                  >
+                    {plan.popular && (
+                      <span className="absolute -top-2 right-4 bg-lobster-500 text-white text-xs px-2 py-0.5 rounded-full">
+                        Most Popular
+                      </span>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-lg">{plan.name}</div>
+                        <div className="text-sm text-gray-400 mt-1">
+                          {plan.features.join(' • ')}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xl font-bold">{plan.price}</div>
+                        <div className="text-sm text-gray-400">{plan.period}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/50 rounded-lg px-4 py-3 text-red-400">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setStep('ai')}
+                  className="px-6 py-3 rounded-lg border border-gray-700 hover:bg-gray-800 transition-colors"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={handlePlanContinue}
+                  className="flex-1 bg-lobster-500 py-3 rounded-lg font-semibold hover:bg-lobster-400 transition-colors"
+                >
+                  {selectedPlan === 'free' ? 'Start Free Trial →' : 'Continue to Payment →'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 7: Payment (for paid plans) */}
+        {step === 'payment' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">Step 7: Complete Payment</h2>
+
+            <div className="space-y-6">
+              <div className="bg-gray-800 rounded-xl p-6">
+                <h3 className="font-semibold mb-4">Order Summary</h3>
+                <dl className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-gray-400">Plan</dt>
+                    <dd className="font-semibold">{PLANS.find(p => p.id === selectedPlan)?.name}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-400">Telegram Bot</dt>
+                    <dd>@{botInfo?.username}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-400">Email</dt>
+                    <dd>{email}</dd>
+                  </div>
+                  <div className="border-t border-gray-700 pt-3 mt-3">
+                    <div className="flex justify-between text-lg">
+                      <dt className="font-semibold">Total</dt>
+                      <dd className="font-bold text-lobster-400">
+                        {PLANS.find(p => p.id === selectedPlan)?.price}/month
+                      </dd>
+                    </div>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 text-sm text-blue-300">
+                <p>Your subscription will auto-renew monthly. Cancel anytime from your dashboard.</p>
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/50 rounded-lg px-4 py-3 text-red-400">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setStep('plan')}
+                  disabled={isProcessingPayment}
+                  className="px-6 py-3 rounded-lg border border-gray-700 hover:bg-gray-800 transition-colors disabled:opacity-50"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={initiatePayment}
+                  disabled={isProcessingPayment}
+                  className="flex-1 bg-lobster-500 py-3 rounded-lg font-semibold hover:bg-lobster-400 transition-colors disabled:opacity-50"
+                >
+                  {isProcessingPayment ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Processing...
+                    </span>
+                  ) : (
+                    'Pay with Razorpay →'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 8: Deploy (for free plan) */}
         {step === 'deploy' && (
           <div>
-            <h2 className="text-2xl font-bold mb-6">Step 5: Deploy Your Assistant</h2>
-            
+            <h2 className="text-2xl font-bold mb-6">Step 7: Deploy Your Assistant</h2>
+
             <div className="space-y-6">
               <div className="bg-gray-800 rounded-xl p-6">
                 <h3 className="font-semibold mb-4">Summary</h3>
                 <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-gray-400">Email</dt>
+                    <dd>{email}</dd>
+                  </div>
                   <div className="flex justify-between">
                     <dt className="text-gray-400">Telegram Bot</dt>
                     <dd>@{botInfo?.username}</dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-gray-400">AI Provider</dt>
-                    <dd>{aiProvider === 'openrouter' ? 'OpenRouter (Free)' : 
+                    <dd>{aiProvider === 'openrouter' ? 'OpenRouter (Free)' :
                          aiProvider === 'gemini' ? 'Google Gemini' :
-                         aiProvider === 'groq' ? 'Groq' : 
+                         aiProvider === 'groq' ? 'Groq' :
                          aiProvider.charAt(0).toUpperCase() + aiProvider.slice(1)}</dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-gray-400">Plan</dt>
-                    <dd>{plan === 'free' ? '7-day Free Trial' : plan}</dd>
+                    <dd>7-day Free Trial</dd>
                   </div>
                 </dl>
               </div>
-              
+
               {error && (
                 <div className="bg-red-500/10 border border-red-500/50 rounded-lg px-4 py-3 text-red-400">
                   {error}
                 </div>
               )}
-              
+
               <div className="flex gap-4">
                 <button
-                  onClick={() => setStep('ai')}
+                  onClick={() => setStep('plan')}
                   className="px-6 py-3 rounded-lg border border-gray-700 hover:bg-gray-800 transition-colors"
                 >
                   ← Back
@@ -466,26 +813,26 @@ function OnboardContent() {
                       Deploying...
                     </span>
                   ) : (
-                    '🚀 Deploy Now'
+                    'Start Free Trial →'
                   )}
                 </button>
               </div>
             </div>
           </div>
         )}
-        
-        {/* Step 5: Done */}
+
+        {/* Done */}
         {step === 'done' && result && (
           <div className="text-center">
             <div className="text-6xl mb-6">🎉</div>
             <h2 className="text-2xl font-bold mb-2">You're Live!</h2>
             <p className="text-gray-400 mb-8">Your AI assistant is ready to chat.</p>
-            
+
             <div className="bg-gray-800 rounded-xl p-6 mb-8">
               <p className="text-sm text-gray-400 mb-2">Open Telegram and message:</p>
               <p className="text-xl font-mono">@{botInfo?.username}</p>
             </div>
-            
+
             <div className="space-y-4">
               <a
                 href={`https://t.me/${botInfo?.username}`}

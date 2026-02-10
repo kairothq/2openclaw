@@ -8,7 +8,7 @@ const GCP_API_SECRET = process.env.GCP_API_SECRET || ''
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { telegramToken, telegramUserId, aiProvider, apiKey, plan } = body
+    const { telegramToken, telegramUserId, aiProvider, apiKey, plan, email } = body
     
     if (!telegramToken) {
       return NextResponse.json({ error: 'Telegram token required' }, { status: 400 })
@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
         ownerIds: [telegramUserId],
         aiProvider: aiProvider || 'gemini',
         apiKey,
-        plan: plan || 'free'
+        plan: plan || 'free',
+        email
       })
     })
     
