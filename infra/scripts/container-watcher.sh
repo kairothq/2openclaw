@@ -66,7 +66,8 @@ recover_container() {
     # Get port from users file (MUST use original port for Caddy to work)
     local port=""
     if [ -f "/opt/2openclaw/data/users/${user_id}.json" ]; then
-        port=$(grep -o '"port":[0-9]*' "/opt/2openclaw/data/users/${user_id}.json" | grep -o '[0-9]*')
+        # Handle JSON with space after colon: "port": 18004
+        port=$(grep -oE '"port":\s*[0-9]+' "/opt/2openclaw/data/users/${user_id}.json" | grep -oE '[0-9]+')
     fi
 
     if [ -z "$port" ]; then

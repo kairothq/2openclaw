@@ -126,10 +126,10 @@ for data_dir in "$DATA_DIR"/*/; do
 
     log "Found orphaned data for $user_id, attempting recovery..."
 
-    # Get port from users file
+    # Get port from users file (handle space after colon in JSON)
     port=""
     if [ -f "/opt/2openclaw/data/users/${user_id}.json" ]; then
-        port=$(grep -o '"port":[0-9]*' "/opt/2openclaw/data/users/${user_id}.json" | grep -o '[0-9]*')
+        port=$(grep -oE '"port":\s*[0-9]+' "/opt/2openclaw/data/users/${user_id}.json" | grep -oE '[0-9]+')
     fi
 
     # Assign new port if not found
