@@ -3,12 +3,14 @@
 # Listens to Docker events and immediately recovers crashed/stopped containers
 # Deploy as systemd service: /etc/systemd/system/2openclaw-watcher.service
 
+set -u  # Exit on undefined variable
+
 LOG_FILE="/var/log/2openclaw/watcher.log"
 DATA_DIR="/opt/2openclaw/data/instances"
 EXTERNAL_IP="34.131.95.162"
 
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
 # Add Caddy route using API (not file manipulation)
@@ -49,28 +51,38 @@ recover_container() {
     local container_name="openclaw-${user_id}"
     local data_dir="${DATA_DIR}/${user_id}"
 
+    # Check if container already exists
+    if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+        log "Container $container_name already exists, skipping recovery"
+        return 0
+    fi
+
     # Check if data directory exists
     if [ ! -d "$data_dir" ] || [ ! -f "${data_dir}/openclaw.json" ]; then
         log "Cannot recover $user_id - no data directory or config"
         return 1
     fi
 
-    # Get port from users file or assign new one
+    # Get port from users file (MUST use original port for Caddy to work)
     local port=""
     if [ -f "/opt/2openclaw/data/users/${user_id}.json" ]; then
         port=$(grep -o '"port":[0-9]*' "/opt/2openclaw/data/users/${user_id}.json" | grep -o '[0-9]*')
     fi
 
     if [ -z "$port" ]; then
-        # Find max port and add 1
-        local max_port=$(docker ps --format '{{.Ports}}' | grep -oE '0\.0\.0\.0:[0-9]+' | cut -d: -f2 | sort -n | tail -1)
-        port=$((max_port + 1))
-        [ "$port" -lt 18001 ] && port=18001
+        log "Cannot recover $user_id - no port in users file"
+        return 1
+    fi
+
+    # Check if port is already in use
+    if docker ps --format '{{.Ports}}' | grep -q ":${port}->"; then
+        log "Port $port already in use, cannot recover $container_name"
+        return 1
     fi
 
     log "Recovering $container_name on port $port..."
 
-    # Create container
+    # Create container with original port
     if docker run -d \
         --name "$container_name" \
         --restart unless-stopped \
@@ -79,12 +91,9 @@ recover_container() {
         --memory="1536m" \
         --cpus="1" \
         -e NODE_OPTIONS="--max-old-space-size=1280" \
-        ghcr.io/openclaw/openclaw:latest 2>/dev/null; then
+        ghcr.io/openclaw/openclaw:latest 2>&1; then
 
-        log "Successfully recovered $container_name"
-
-        # Add Caddy route
-        add_caddy_route "$user_id" "$port"
+        log "Successfully recovered $container_name on port $port"
         return 0
     else
         log "Failed to recover $container_name"
