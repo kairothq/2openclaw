@@ -1,6 +1,18 @@
-# AI Providers for StartClaw
+# AI Providers for 2OpenClaw
 
-## Recommended Free Providers
+> **CRITICAL WARNING: Free Tier APIs DO NOT WORK with OpenClaw!**
+>
+> OpenClaw's system prompt is ~10,000+ tokens. Free APIs have strict limits:
+> - **Groq free**: 6,000-12,000 TPM limit → FAILS on first message
+> - **OpenRouter free**: Rate limited → FAILS
+> - **Gemini free**: Quota exhausts quickly → FAILS
+>
+> **BYOK (Bring Your Own Key) is REQUIRED for reliable operation.**
+> We recommend Anthropic Claude ($3-15/M tokens) or Google Gemini ($0.075/M tokens).
+
+---
+
+## Recommended Providers (BYOK Required)
 
 ### Tier 1 — Most Reliable
 
@@ -109,35 +121,33 @@
 
 ---
 
-## StartClaw Default Provider
+## 2OpenClaw Default Configuration
 
-For free tier users, StartClaw uses **Groq** by default:
-- Model: `llama-3.3-70b-versatile`
-- Rate limit: 30 requests/minute (shared across free users)
-- Quality: Very good for most tasks
+2OpenClaw requires BYOK (Bring Your Own Key). Recommended providers:
 
-Users can upgrade to BYOK (Bring Your Own Key) for:
-- Higher rate limits
-- Better models (Claude, GPT-4)
-- No sharing with other users
+| Provider | Model | Price | Notes |
+|----------|-------|-------|-------|
+| **Anthropic Claude** | claude-sonnet-4-5 | $3-15/M tokens | Best quality, recommended |
+| **Google Gemini** | gemini-2.0-flash | $0.075/M tokens | Budget option, good quality |
+| **OpenAI GPT-4o** | gpt-4o | $5-15/M tokens | Good all-rounder |
+
+**Free tiers are NOT supported** due to OpenClaw's large system prompt (~10K tokens).
 
 ---
 
-## Fallback Chain
+## Why Free Tiers Don't Work
 
-StartClaw implements automatic fallback:
+OpenClaw's system prompt includes:
+- Full agent capabilities description (~3K tokens)
+- Tool definitions and schemas (~4K tokens)
+- Context and conversation history (~3K+ tokens)
 
-```
-1. User's own key (if provided)
-   ↓ (if fails or not set)
-2. Groq free tier
-   ↓ (if rate limited)
-3. Google AI Studio
-   ↓ (if rate limited)
-4. OpenRouter free models
-```
+This exceeds free tier limits:
+- Groq: 6,000-12,000 TPM → First message fails
+- Gemini free: 60 RPM but quota exhausts in hours
+- OpenRouter free: Heavy rate limiting
 
-This ensures users always get a response, even if one provider is down.
+**Solution**: Users must provide their own API key (BYOK model).
 
 ---
 

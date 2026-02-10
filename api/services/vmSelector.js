@@ -13,7 +13,7 @@ const { exec } = require('child_process');
 const util = require('util');
 const execAsync = util.promisify(exec);
 
-const DATA_DIR = process.env.DATA_DIR || '/opt/startclaw/data';
+const DATA_DIR = process.env.DATA_DIR || '/opt/2openclaw/data';
 const VMS_FILE = path.join(__dirname, '../data/vms.json');
 
 // Default VM registry

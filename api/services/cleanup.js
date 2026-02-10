@@ -11,7 +11,7 @@ const { exec } = require('child_process');
 const util = require('util');
 const execAsync = util.promisify(exec);
 
-const DATA_DIR = process.env.DATA_DIR || '/opt/startclaw/data';
+const DATA_DIR = process.env.DATA_DIR || '/opt/2openclaw/data';
 const INSTANCES_FILE = path.join(DATA_DIR, 'instances.json');
 
 // Cleanup thresholds in days by tier

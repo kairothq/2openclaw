@@ -8,14 +8,14 @@ This guide contains exact code changes and commands to implement all features.
 
 ### 2.1 Health Monitoring Script
 
-**Create file**: `/opt/startclaw/scripts/health_monitor.sh` on openclaw2 VM
+**Create file**: `/opt/2openclaw/scripts/health_monitor.sh` on openclaw2 VM
 
 ```bash
 #!/bin/bash
 # Health monitoring script - checks all containers and restarts if unhealthy
-# Cron: */5 * * * * /opt/startclaw/scripts/health_monitor.sh >> /var/log/startclaw/health.log 2>&1
+# Cron: */5 * * * * /opt/2openclaw/scripts/health_monitor.sh >> /var/log/2openclaw/health.log 2>&1
 
-LOG_FILE="/var/log/startclaw/health.log"
+LOG_FILE="/var/log/2openclaw/health.log"
 ALERT_WEBHOOK="${ALERT_WEBHOOK_URL:-}"
 MAX_RESTARTS=5
 
@@ -34,7 +34,7 @@ send_alert() {
 }
 
 # Ensure log directory exists
-mkdir -p /var/log/startclaw
+mkdir -p /var/log/2openclaw
 
 log "Starting health check..."
 
@@ -77,15 +77,15 @@ log "Health check completed."
 **Setup command**:
 ```bash
 # On openclaw2 VM
-sudo tee /opt/startclaw/scripts/health_monitor.sh << 'SCRIPT'
+sudo tee /opt/2openclaw/scripts/health_monitor.sh << 'SCRIPT'
 [paste script above]
 SCRIPT
 
-sudo chmod +x /opt/startclaw/scripts/health_monitor.sh
-sudo mkdir -p /var/log/startclaw
+sudo chmod +x /opt/2openclaw/scripts/health_monitor.sh
+sudo mkdir -p /var/log/2openclaw
 
 # Add to cron
-(crontab -l 2>/dev/null; echo "*/5 * * * * /opt/startclaw/scripts/health_monitor.sh >> /var/log/startclaw/health.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "*/5 * * * * /opt/2openclaw/scripts/health_monitor.sh >> /var/log/2openclaw/health.log 2>&1") | crontab -
 ```
 
 ---
@@ -298,7 +298,7 @@ async function stopContainer(userId) {
 async function deleteContainer(userId) {
     try {
         await execAsync(`docker rm -f openclaw-${userId}`);
-        await execAsync(`rm -rf /opt/startclaw/data/instances/${userId}`);
+        await execAsync(`rm -rf /opt/2openclaw/data/instances/${userId}`);
         console.log(`[cleanup] Deleted container and data for ${userId}`);
     } catch (error) {
         console.error(`[cleanup] Failed to delete ${userId}:`, error.message);
@@ -384,15 +384,15 @@ app.post('/admin/cleanup-inactive', authenticateAdmin, async (req, res) => {
 });
 ```
 
-**Create cron script**: `/opt/startclaw/scripts/cleanup_inactive.sh`
+**Create cron script**: `/opt/2openclaw/scripts/cleanup_inactive.sh`
 
 ```bash
 #!/bin/bash
 # Run inactive account cleanup daily at 2am
-# Cron: 0 2 * * * /opt/startclaw/scripts/cleanup_inactive.sh
+# Cron: 0 2 * * * /opt/2openclaw/scripts/cleanup_inactive.sh
 
 API_URL="http://localhost:3000"
-API_SECRET="${GCP_API_SECRET:-startclaw2024secret}"
+API_SECRET="${GCP_API_SECRET:-2openclaw2024secret}"
 
 curl -sf -X POST "$API_URL/admin/cleanup-inactive" \
     -H "Authorization: Bearer $API_SECRET" \
@@ -467,7 +467,7 @@ app.patch('/instances/:userId/config', authenticateUser, async (req, res) => {
             return res.status(404).json({ error: 'Instance not found' });
         }
 
-        const configPath = `/opt/startclaw/data/instances/${userId}/openclaw.json`;
+        const configPath = `/opt/2openclaw/data/instances/${userId}/openclaw.json`;
 
         // Read current config
         const { stdout } = await execAsync(`cat ${configPath}`);
@@ -797,7 +797,7 @@ app.post('/admin/instances/:userId/action', authenticateAdmin, async (req, res) 
                 break;
             case 'delete':
                 await execAsync(`docker rm -f ${containerName}`);
-                await execAsync(`rm -rf /opt/startclaw/data/instances/${userId}`);
+                await execAsync(`rm -rf /opt/2openclaw/data/instances/${userId}`);
                 const instances = await loadInstances();
                 delete instances[userId];
                 await saveInstances(instances);
@@ -819,7 +819,7 @@ app.post('/admin/instances/:userId/action', authenticateAdmin, async (req, res) 
 
 ```bash
 # SSH to molty
-gcloud compute ssh molty --zone=asia-south2-a
+gcloud compute ssh molty --zone=asia-south1-a
 
 # Navigate to project
 cd ~/2openclaw
@@ -840,7 +840,7 @@ mkdir -p api/services api/data
 echo '{"openclaw2":{"host":"openclaw2","ip":"34.131.95.162","zone":"asia-south2-c","maxContainers":8,"ramGB":16,"status":"active"}}' > api/data/vms.json
 
 # Restart API
-sudo systemctl restart startclaw-api
+sudo systemctl restart 2openclaw-api
 ```
 
 ### On openclaw2 VM (Container Host):
@@ -850,21 +850,21 @@ sudo systemctl restart startclaw-api
 gcloud compute ssh openclaw2 --zone=asia-south2-c
 
 # Create scripts directory
-sudo mkdir -p /opt/startclaw/scripts /var/log/startclaw
+sudo mkdir -p /opt/2openclaw/scripts /var/log/2openclaw
 
 # Create health monitor script
-sudo nano /opt/startclaw/scripts/health_monitor.sh
+sudo nano /opt/2openclaw/scripts/health_monitor.sh
 # [paste script]
-sudo chmod +x /opt/startclaw/scripts/health_monitor.sh
+sudo chmod +x /opt/2openclaw/scripts/health_monitor.sh
 
 # Create cleanup script
-sudo nano /opt/startclaw/scripts/cleanup_inactive.sh
+sudo nano /opt/2openclaw/scripts/cleanup_inactive.sh
 # [paste script]
-sudo chmod +x /opt/startclaw/scripts/cleanup_inactive.sh
+sudo chmod +x /opt/2openclaw/scripts/cleanup_inactive.sh
 
 # Add cron jobs
-(crontab -l 2>/dev/null; echo "*/5 * * * * /opt/startclaw/scripts/health_monitor.sh >> /var/log/startclaw/health.log 2>&1") | crontab -
-(crontab -l 2>/dev/null; echo "0 2 * * * /opt/startclaw/scripts/cleanup_inactive.sh >> /var/log/startclaw/cleanup.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "*/5 * * * * /opt/2openclaw/scripts/health_monitor.sh >> /var/log/2openclaw/health.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "0 2 * * * /opt/2openclaw/scripts/cleanup_inactive.sh >> /var/log/2openclaw/cleanup.log 2>&1") | crontab -
 
 # Verify cron
 crontab -l

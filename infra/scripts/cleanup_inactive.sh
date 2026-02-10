@@ -1,11 +1,11 @@
 #!/bin/bash
 # Inactive account cleanup script
-# Deploy to: /opt/startclaw/scripts/cleanup_inactive.sh on molty VM
-# Cron: 0 2 * * * /opt/startclaw/scripts/cleanup_inactive.sh >> /var/log/startclaw/cleanup.log 2>&1
+# Deploy to: /opt/2openclaw/scripts/cleanup_inactive.sh on molty VM
+# Cron: 0 2 * * * /opt/2openclaw/scripts/cleanup_inactive.sh >> /var/log/2openclaw/cleanup.log 2>&1
 
 API_URL="${API_URL:-http://localhost:3000}"
-API_SECRET="${API_SECRET:-startclaw2024secret}"
-LOG_DIR="/var/log/startclaw"
+API_SECRET="${API_SECRET:-2openclaw2024secret}"
+LOG_DIR="/var/log/2openclaw"
 
 mkdir -p "$LOG_DIR"
 

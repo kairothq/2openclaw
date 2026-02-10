@@ -1,15 +1,15 @@
 #!/bin/bash
 # 2OpenClaw Daily Backup Script
 # Backs up all user OpenClaw data to Google Cloud Storage
-# Uses bind mount paths at /opt/startclaw/data/instances/{userId}/
+# Uses bind mount paths at /opt/2openclaw/data/instances/{userId}/
 
 set -e
 
-INSTANCES_DIR="/opt/startclaw/data/instances"
+INSTANCES_DIR="/opt/2openclaw/data/instances"
 BACKUP_DIR="/backups"
-GCS_BUCKET="gs://startclaw-backups"
+GCS_BUCKET="gs://2openclaw-backups"
 DATE=$(date +%Y-%m-%d)
-LOG_FILE="/opt/startclaw/logs/backup.log"
+LOG_FILE="/opt/2openclaw/logs/backup.log"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"

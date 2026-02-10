@@ -1,11 +1,11 @@
-# StartClaw Infrastructure Setup
+# 2OpenClaw Infrastructure Setup
 
-This guide walks through setting up the StartClaw infrastructure from scratch.
+This guide walks through setting up the 2OpenClaw infrastructure from scratch.
 
 ## Prerequisites
 
 - GCP account with billing enabled (or $300 free credits)
-- Domain name (startclaw.com or similar)
+- Domain name (2openclaw.vercel.app or similar)
 - Basic familiarity with terminal
 
 ## Phase 1: VM Setup (~30 min)
@@ -14,7 +14,7 @@ This guide walks through setting up the StartClaw infrastructure from scratch.
 
 ```bash
 # Using gcloud CLI
-gcloud compute instances create startclaw-main \
+gcloud compute instances create openclaw2 \
   --zone=asia-south1-a \
   --machine-type=e2-medium \
   --image-family=ubuntu-2204-lts \
@@ -32,7 +32,7 @@ gcloud compute firewall-rules create allow-https \
 Or via Console:
 1. Go to Compute Engine → VM instances
 2. Create instance
-3. Name: `startclaw-main`
+3. Name: `openclaw2`
 4. Region: `asia-south1` (Mumbai)
 5. Machine type: `e2-medium` (4GB RAM, 2 vCPU)
 6. Boot disk: Ubuntu 22.04 LTS, 50GB SSD
@@ -45,16 +45,16 @@ Or via Console:
 In your domain registrar (Cloudflare/GoDaddy/Namecheap):
 
 ```
-A record: startclaw.com → [VM's external IP]
-A record: *.startclaw.com → [VM's external IP]
+A record: 2openclaw.vercel.app → [VM's external IP]
+A record: *.2openclaw.vercel.app → [VM's external IP]
 ```
 
-The wildcard allows us to create `user123.startclaw.com` automatically.
+The wildcard allows us to create `user123.2openclaw.vercel.app` automatically.
 
 ### Step 3: SSH into VM
 
 ```bash
-gcloud compute ssh startclaw-main --zone=asia-south1-a
+gcloud compute ssh openclaw2 --zone=asia-south2-c
 ```
 
 ### Step 4: Install Docker
@@ -90,13 +90,13 @@ sudo nano /etc/caddy/Caddyfile
 
 Initial config:
 ```
-startclaw.com {
+2openclaw.vercel.app {
     reverse_proxy localhost:3000
 }
 
 # User subdomains will be added dynamically
 # Example:
-# user123.startclaw.com {
+# user123.2openclaw.vercel.app {
 #     reverse_proxy localhost:18001
 # }
 ```
@@ -114,7 +114,7 @@ sudo systemctl reload caddy
 
 ```bash
 # Pull OpenClaw image
-docker pull ghcr.io/openclaw/openclaw:latest
+docker pull ghcr.io/pspdfkit-labs/openclaw:latest
 
 # Create volume for persistence
 docker volume create openclaw-test
@@ -125,9 +125,9 @@ docker run -d \
   --restart unless-stopped \
   -v openclaw-test:/home/node/.openclaw \
   -p 18789:18789 \
-  --memory="512m" \
+  --memory="1536m" \
   --cpus="0.5" \
-  ghcr.io/openclaw/openclaw:latest
+  ghcr.io/pspdfkit-labs/openclaw:latest
 ```
 
 ### Step 8: Run onboarding
@@ -152,7 +152,7 @@ sudo nano /etc/caddy/Caddyfile
 
 Add:
 ```
-test.startclaw.com {
+test.2openclaw.vercel.app {
     reverse_proxy localhost:18789
 }
 ```
@@ -164,7 +164,7 @@ sudo systemctl reload caddy
 
 ### Step 10: Test
 
-1. Open https://test.startclaw.com
+1. Open https://test.2openclaw.vercel.app
 2. Message your bot on Telegram
 3. Should respond!
 
@@ -182,7 +182,7 @@ sudo apt install -y google-cloud-cli
 gcloud auth login
 
 # Create bucket
-gsutil mb -l asia-south1 gs://startclaw-backups
+gsutil mb -l asia-south1 gs://2openclaw-backups
 
 # Set lifecycle (delete after 30 days)
 cat > /tmp/lifecycle.json << 'EOF'
@@ -193,23 +193,23 @@ cat > /tmp/lifecycle.json << 'EOF'
   }]
 }
 EOF
-gsutil lifecycle set /tmp/lifecycle.json gs://startclaw-backups
+gsutil lifecycle set /tmp/lifecycle.json gs://2openclaw-backups
 ```
 
 ### Step 12: Setup backup script
 
 ```bash
-sudo mkdir -p /opt/startclaw
-sudo nano /opt/startclaw/backup.sh
+sudo mkdir -p /opt/2openclaw
+sudo nano /opt/2openclaw/backup.sh
 ```
 
 See `infra/scripts/backup.sh` for the full script.
 
 ```bash
-sudo chmod +x /opt/startclaw/backup.sh
+sudo chmod +x /opt/2openclaw/backup.sh
 
 # Add to cron (runs daily at 3 AM)
-echo "0 3 * * * /opt/startclaw/backup.sh" | sudo crontab -
+echo "0 3 * * * /opt/2openclaw/backup.sh" | sudo crontab -
 ```
 
 ---
@@ -262,5 +262,5 @@ sudo journalctl -u caddy | grep -i error
 
 ### Restore from backup
 ```bash
-/opt/startclaw/restore.sh <user_id> [date]
+/opt/2openclaw/restore.sh <user_id> [date]
 ```

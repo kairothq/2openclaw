@@ -1,9 +1,9 @@
 #!/bin/bash
 # VM Capacity Monitoring Script
-# Deploy to: /opt/startclaw/scripts/capacity_check.sh on container host VMs
-# Cron: */15 * * * * /opt/startclaw/scripts/capacity_check.sh >> /var/log/startclaw/capacity.log 2>&1
+# Deploy to: /opt/2openclaw/scripts/capacity_check.sh on container host VMs
+# Cron: */15 * * * * /opt/2openclaw/scripts/capacity_check.sh >> /var/log/2openclaw/capacity.log 2>&1
 
-LOG_DIR="/var/log/startclaw"
+LOG_DIR="/var/log/2openclaw"
 LOG_FILE="$LOG_DIR/capacity.log"
 ALERT_WEBHOOK="${ALERT_WEBHOOK_URL:-}"
 API_URL="${API_URL:-http://localhost:3000}"
@@ -71,7 +71,7 @@ if [ "$DISK_PERCENT" -ge "$DISK_CRITICAL" ]; then
     # Auto-cleanup old logs
     log "Attempting automatic log cleanup..."
     find /var/log -name "*.gz" -mtime +7 -delete 2>/dev/null || true
-    find /var/log/startclaw -name "*.log.*" -mtime +7 -delete 2>/dev/null || true
+    find /var/log/2openclaw -name "*.log.*" -mtime +7 -delete 2>/dev/null || true
     docker system prune -f --filter "until=168h" 2>/dev/null || true
 elif [ "$DISK_PERCENT" -ge "$DISK_WARNING" ]; then
     send_alert "warning" "Disk at ${DISK_PERCENT}%"

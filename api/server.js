@@ -33,7 +33,7 @@ const PORT = process.env.PORT || 3000;
 const API_SECRET = process.env.API_SECRET || 'change-me-in-production';
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const DATA_DIR = '/opt/startclaw/data';
+const DATA_DIR = '/opt/2openclaw/data';
 const CADDY_FILE = '/etc/caddy/Caddyfile';
 const BASE_PORT = 18001;
 
@@ -338,7 +338,7 @@ app.post('/provision', provisionLimiter, authMiddleware, validateProvisionInput,
             --memory="${memory}" \
             --cpus="${cpus}" \
             -e NODE_OPTIONS="--max-old-space-size=${heapSize}" \
-            ghcr.io/openclaw/openclaw:latest`);
+            ghcr.io/pspdfkit-labs/openclaw:latest`);
         
         // Save port mapping
         await savePort(userId, port);

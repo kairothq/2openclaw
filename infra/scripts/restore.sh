@@ -1,7 +1,7 @@
 #!/bin/bash
 # 2OpenClaw Restore Script
 # Restores a user's OpenClaw instance from backup
-# Uses bind mount paths at /opt/startclaw/data/instances/{userId}/
+# Uses bind mount paths at /opt/2openclaw/data/instances/{userId}/
 
 set -e
 
@@ -16,12 +16,12 @@ usage() {
 
 USER_ID="$1"
 DATE="${2:-latest}"
-GCS_BUCKET="gs://startclaw-backups"
-INSTANCES_DIR="/opt/startclaw/data/instances"
+GCS_BUCKET="gs://2openclaw-backups"
+INSTANCES_DIR="/opt/2openclaw/data/instances"
 DATA_DIR="${INSTANCES_DIR}/${USER_ID}"
-PORTS_FILE="/opt/startclaw/data/ports.json"
+PORTS_FILE="/opt/2openclaw/data/ports.json"
 CONTAINER_NAME="openclaw-${USER_ID}"
-TEMP_DIR="/tmp/startclaw-restore"
+TEMP_DIR="/tmp/2openclaw-restore"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"

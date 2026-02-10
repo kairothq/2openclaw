@@ -1,9 +1,9 @@
 #!/bin/bash
 # Health monitoring script - checks all containers and restarts if unhealthy
-# Deploy to: /opt/startclaw/scripts/health_monitor.sh on openclaw2 VM
-# Cron: */5 * * * * /opt/startclaw/scripts/health_monitor.sh >> /var/log/startclaw/health.log 2>&1
+# Deploy to: /opt/2openclaw/scripts/health_monitor.sh on openclaw2 VM
+# Cron: */5 * * * * /opt/2openclaw/scripts/health_monitor.sh >> /var/log/2openclaw/health.log 2>&1
 
-LOG_DIR="/var/log/startclaw"
+LOG_DIR="/var/log/2openclaw"
 LOG_FILE="$LOG_DIR/health.log"
 ALERT_WEBHOOK="${ALERT_WEBHOOK_URL:-}"
 MAX_RESTARTS=5

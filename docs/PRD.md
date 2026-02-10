@@ -93,7 +93,7 @@ A fully managed platform where users:
 | API Server | molty VM | Internal | Provisioning API |
 | Container Host | openclaw2 | 34.131.95.162 | User containers |
 | Frontend | Vercel | 2openclaw.vercel.app | Web interface |
-| Backups | GCS | gs://startclaw-backups/ | Data storage |
+| Backups | GCS | gs://2openclaw-backups/ | Data storage |
 
 ### 2.3 Data Flow
 
@@ -194,7 +194,7 @@ GET    /instances/:userId/stats    - Get usage statistics
 **Tiers**:
 | Tier | Price | Trial | Resources |
 |------|-------|-------|-----------|
-| Trial | Free | 7 days | 512MB RAM, 5GB storage |
+| Trial | Free | 7 days | 1536MB RAM, 5GB storage |
 | Starter | ₹199/mo | - | 1.5GB RAM, 10GB storage |
 | Pro | ₹499/mo | - | 3GB RAM, 20GB storage |
 | Business | ₹1,499/mo | - | 4GB RAM, 50GB storage |
@@ -393,7 +393,7 @@ docker run -d \
     --cpus=1 \
     --restart=unless-stopped \
     -e NODE_OPTIONS="--max-old-space-size=1280" \
-    -v /opt/startclaw/data/instances/${USER_ID}:/data \
+    -v /opt/2openclaw/data/instances/${USER_ID}:/home/node/.openclaw \
     --health-cmd="curl -sf http://localhost:18789/health || exit 1" \
     --health-interval=30s \
     --health-timeout=10s \
@@ -614,7 +614,7 @@ GitHub: https://github.com/kairothq/2openclaw
 ### C. SSH Access
 ```bash
 # Development VM
-gcloud compute ssh molty --zone=asia-south2-a
+gcloud compute ssh molty --zone=asia-south1-a
 
 # Production VM
 gcloud compute ssh openclaw2 --zone=asia-south2-c

@@ -41,7 +41,7 @@
 
 | Tier | Price | API Source | Resources | Best For |
 |------|-------|------------|-----------|----------|
-| **Trial** | Free (7 days) | Platform's limited Gemini | 512MB RAM, 5GB storage | Testing |
+| **Trial** | Free (7 days) | Platform's limited Gemini | 1536MB RAM, 5GB storage | Testing |
 | **Starter** | ₹199/month | BYOK required | 1.5GB RAM, 10GB storage | Personal use |
 | **Pro** | ₹499/month | BYOK required | 3GB RAM, 20GB storage | Power users |
 | **Business** | ₹1,499/month | BYOK required | 4GB RAM, 50GB storage, priority support | Teams |
@@ -118,7 +118,7 @@ Since GCP allows only 1 container per VM with the container-optimized approach, 
 **1. Monitoring Script (cron every 5 min)**
 ```bash
 #!/bin/bash
-# /opt/startclaw/scripts/check_capacity.sh
+# /opt/2openclaw/scripts/check_capacity.sh
 
 THRESHOLD_RAM_PERCENT=80
 THRESHOLD_CONTAINERS=8
@@ -207,11 +207,11 @@ When scale exceeds 50+ containers, migrate to GKE:
 **2. Daily Cleanup Cron Script**
 ```bash
 #!/bin/bash
-# /opt/startclaw/scripts/cleanup_inactive.sh
-# Run daily at 2am: 0 2 * * * /opt/startclaw/scripts/cleanup_inactive.sh
+# /opt/2openclaw/scripts/cleanup_inactive.sh
+# Run daily at 2am: 0 2 * * * /opt/2openclaw/scripts/cleanup_inactive.sh
 
 API_URL="http://localhost:3000"
-API_SECRET="startclaw2024secret"
+API_SECRET="2openclaw2024secret"
 
 # Call API endpoint that handles cleanup logic
 curl -X POST "$API_URL/admin/cleanup-inactive" \
@@ -266,9 +266,9 @@ app.post('/admin/cleanup-inactive', authenticateAdmin, async (req, res) => {
 ## 6. Backup Strategy
 
 ### Current Implementation
-- Script: `/opt/startclaw/scripts/backup.sh`
+- Script: `/opt/2openclaw/scripts/backup.sh`
 - Schedule: Daily at 3am
-- Storage: GCS bucket `gs://startclaw-backups/`
+- Storage: GCS bucket `gs://2openclaw-backups/`
 - Retention: 7 days local, 30 days GCS
 
 ### Enhanced Backup Plan
@@ -292,7 +292,7 @@ docker exec $CONTAINER_ID node -e "console.log('healthy')" || {
 **3. Backup Verification**
 ```bash
 # After backup, verify integrity
-gsutil ls -l gs://startclaw-backups/$DATE/$USER_ID/ || {
+gsutil ls -l gs://2openclaw-backups/$DATE/$USER_ID/ || {
     echo "Backup verification failed!"
     # Alert admin
 }
@@ -352,7 +352,7 @@ healthcheck:
 **Auto-Recovery Script:**
 ```bash
 #!/bin/bash
-# /opt/startclaw/scripts/health_monitor.sh (cron every 5 min)
+# /opt/2openclaw/scripts/health_monitor.sh (cron every 5 min)
 
 for container in $(docker ps -aq --filter "name=openclaw-"); do
     if ! docker exec $container curl -sf http://localhost:18789/health; then

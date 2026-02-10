@@ -1,11 +1,11 @@
 #!/bin/bash
-# StartClaw VM Setup Script
+# 2OpenClaw VM Setup Script
 # Run this on a fresh Ubuntu 22.04 VM
 # Usage: curl -fsSL https://raw.githubusercontent.com/kairothq/2openclaw/main/infra/setup.sh | bash
 
 set -e
 
-echo "🦞 StartClaw Setup Starting..."
+echo "🦞 2OpenClaw Setup Starting..."
 echo ""
 
 # Colors
@@ -69,44 +69,44 @@ else
     log_success "Node.js already installed"
 fi
 
-# Step 5: Create StartClaw directories
+# Step 5: Create 2OpenClaw directories
 log_info "Creating directories..."
-mkdir -p /opt/startclaw/{scripts,data,logs,api}
-mkdir -p /opt/startclaw/data/{users,instances}
-mkdir -p /opt/startclaw/api/{services,middleware,data}
-mkdir -p /var/log/startclaw
+mkdir -p /opt/2openclaw/{scripts,data,logs,api}
+mkdir -p /opt/2openclaw/data/{users,instances}
+mkdir -p /opt/2openclaw/api/{services,middleware,data}
+mkdir -p /var/log/2openclaw
 mkdir -p /backups
-chown -R $ACTUAL_USER:$ACTUAL_USER /opt/startclaw
-chown -R $ACTUAL_USER:$ACTUAL_USER /var/log/startclaw
+chown -R $ACTUAL_USER:$ACTUAL_USER /opt/2openclaw
+chown -R $ACTUAL_USER:$ACTUAL_USER /var/log/2openclaw
 chown -R $ACTUAL_USER:$ACTUAL_USER /backups
 log_success "Directories created"
 
 # Step 6: Download scripts and API files
-log_info "Downloading StartClaw scripts..."
+log_info "Downloading 2OpenClaw scripts..."
 REPO_RAW="https://raw.githubusercontent.com/kairothq/2openclaw/main"
 
 # Infrastructure scripts
-curl -fsSL "$REPO_RAW/infra/scripts/backup.sh" -o /opt/startclaw/scripts/backup.sh
-curl -fsSL "$REPO_RAW/infra/scripts/restore.sh" -o /opt/startclaw/scripts/restore.sh
-curl -fsSL "$REPO_RAW/infra/scripts/health_monitor.sh" -o /opt/startclaw/scripts/health_monitor.sh
-curl -fsSL "$REPO_RAW/infra/scripts/cleanup_inactive.sh" -o /opt/startclaw/scripts/cleanup_inactive.sh
-curl -fsSL "$REPO_RAW/infra/scripts/capacity_check.sh" -o /opt/startclaw/scripts/capacity_check.sh
-chmod +x /opt/startclaw/scripts/*.sh
+curl -fsSL "$REPO_RAW/infra/scripts/backup.sh" -o /opt/2openclaw/scripts/backup.sh
+curl -fsSL "$REPO_RAW/infra/scripts/restore.sh" -o /opt/2openclaw/scripts/restore.sh
+curl -fsSL "$REPO_RAW/infra/scripts/health_monitor.sh" -o /opt/2openclaw/scripts/health_monitor.sh
+curl -fsSL "$REPO_RAW/infra/scripts/cleanup_inactive.sh" -o /opt/2openclaw/scripts/cleanup_inactive.sh
+curl -fsSL "$REPO_RAW/infra/scripts/capacity_check.sh" -o /opt/2openclaw/scripts/capacity_check.sh
+chmod +x /opt/2openclaw/scripts/*.sh
 
 # API server files
-curl -fsSL "$REPO_RAW/api/server.js" -o /opt/startclaw/api/server.js
-curl -fsSL "$REPO_RAW/api/package.json" -o /opt/startclaw/api/package.json
+curl -fsSL "$REPO_RAW/api/server.js" -o /opt/2openclaw/api/server.js
+curl -fsSL "$REPO_RAW/api/package.json" -o /opt/2openclaw/api/package.json
 
 # API services
-curl -fsSL "$REPO_RAW/api/services/cleanup.js" -o /opt/startclaw/api/services/cleanup.js
-curl -fsSL "$REPO_RAW/api/services/vmSelector.js" -o /opt/startclaw/api/services/vmSelector.js
+curl -fsSL "$REPO_RAW/api/services/cleanup.js" -o /opt/2openclaw/api/services/cleanup.js
+curl -fsSL "$REPO_RAW/api/services/vmSelector.js" -o /opt/2openclaw/api/services/vmSelector.js
 
 # API middleware
-curl -fsSL "$REPO_RAW/api/middleware/validation.js" -o /opt/startclaw/api/middleware/validation.js
-curl -fsSL "$REPO_RAW/api/middleware/rateLimit.js" -o /opt/startclaw/api/middleware/rateLimit.js
+curl -fsSL "$REPO_RAW/api/middleware/validation.js" -o /opt/2openclaw/api/middleware/validation.js
+curl -fsSL "$REPO_RAW/api/middleware/rateLimit.js" -o /opt/2openclaw/api/middleware/rateLimit.js
 
 # API data
-curl -fsSL "$REPO_RAW/api/data/vms.json" -o /opt/startclaw/api/data/vms.json
+curl -fsSL "$REPO_RAW/api/data/vms.json" -o /opt/2openclaw/api/data/vms.json
 
 log_success "Scripts and API files downloaded"
 
@@ -119,7 +119,7 @@ log_success "OpenClaw image ready"
 log_info "Configuring Caddy..."
 EXTERNAL_IP=$(curl -s ifconfig.me)
 cat > /etc/caddy/Caddyfile << EOF
-# StartClaw Caddy Configuration
+# 2OpenClaw Caddy Configuration
 
 # Health check endpoint
 :80 {
@@ -134,22 +134,22 @@ log_success "Caddy configured"
 
 # Step 9: Install API dependencies
 log_info "Installing API dependencies..."
-cd /opt/startclaw/api
+cd /opt/2openclaw/api
 sudo -u $ACTUAL_USER npm install --production 2>/dev/null || npm install --production
 log_success "API dependencies installed"
 
 # Step 10: Create systemd service for API
 log_info "Creating API service..."
-cat > /etc/systemd/system/startclaw-api.service << EOF
+cat > /etc/systemd/system/2openclaw-api.service << EOF
 [Unit]
-Description=StartClaw Provisioning API
+Description=2OpenClaw Provisioning API
 After=network.target docker.service
 
 [Service]
 Type=simple
 User=$ACTUAL_USER
-WorkingDirectory=/opt/startclaw/api
-EnvironmentFile=/opt/startclaw/api/.env
+WorkingDirectory=/opt/2openclaw/api
+EnvironmentFile=/opt/2openclaw/api/.env
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=5
@@ -160,7 +160,7 @@ Environment=PORT=3000
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
-systemctl enable startclaw-api
+systemctl enable 2openclaw-api
 log_success "API service created"
 
 # Step 11: Setup cron jobs
@@ -168,15 +168,15 @@ log_info "Setting up scheduled jobs..."
 
 # Create cron job entries
 CRON_JOBS=$(cat << 'CRON'
-# StartClaw Scheduled Jobs
+# 2OpenClaw Scheduled Jobs
 # Daily backup at 3 AM
-0 3 * * * /opt/startclaw/scripts/backup.sh >> /var/log/startclaw/backup.log 2>&1
+0 3 * * * /opt/2openclaw/scripts/backup.sh >> /var/log/2openclaw/backup.log 2>&1
 # Health check every 5 minutes
-*/5 * * * * /opt/startclaw/scripts/health_monitor.sh >> /var/log/startclaw/health.log 2>&1
+*/5 * * * * /opt/2openclaw/scripts/health_monitor.sh >> /var/log/2openclaw/health.log 2>&1
 # Capacity check every 15 minutes
-*/15 * * * * /opt/startclaw/scripts/capacity_check.sh >> /var/log/startclaw/capacity.log 2>&1
+*/15 * * * * /opt/2openclaw/scripts/capacity_check.sh >> /var/log/2openclaw/capacity.log 2>&1
 # Inactive account cleanup daily at 2 AM
-0 2 * * * /opt/startclaw/scripts/cleanup_inactive.sh >> /var/log/startclaw/cleanup.log 2>&1
+0 2 * * * /opt/2openclaw/scripts/cleanup_inactive.sh >> /var/log/2openclaw/cleanup.log 2>&1
 CRON
 )
 
@@ -203,18 +203,18 @@ EXTERNAL_IP=$(curl -s ifconfig.me)
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo -e "${GREEN}🦞 StartClaw Setup Complete!${NC}"
+echo -e "${GREEN}🦞 2OpenClaw Setup Complete!${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "External IP: $EXTERNAL_IP"
 echo ""
 echo "Next steps:"
 echo "1. Create .env file:"
-echo "   nano /opt/startclaw/api/.env"
+echo "   nano /opt/2openclaw/api/.env"
 echo ""
 echo "   Required variables:"
 echo "   API_SECRET=$(openssl rand -hex 32)"
-echo "   DATA_DIR=/opt/startclaw/data"
+echo "   DATA_DIR=/opt/2openclaw/data"
 echo ""
 echo "   Optional (for default trial instances):"
 echo "   GEMINI_API_KEY=your_key_here"
@@ -224,7 +224,7 @@ echo "   Optional (for alerts):"
 echo "   ALERT_WEBHOOK_URL=https://hooks.slack.com/..."
 echo ""
 echo "2. Start the API:"
-echo "   sudo systemctl start startclaw-api"
+echo "   sudo systemctl start 2openclaw-api"
 echo ""
 echo "3. Test endpoints:"
 echo "   curl http://localhost:3000/health"
@@ -237,9 +237,9 @@ echo "   - Cleanup: Daily at 2 AM"
 echo "   - Backup: Daily at 3 AM"
 echo ""
 echo "Logs:"
-echo "   /var/log/startclaw/health.log"
-echo "   /var/log/startclaw/capacity.log"
-echo "   /var/log/startclaw/cleanup.log"
-echo "   /var/log/startclaw/backup.log"
+echo "   /var/log/2openclaw/health.log"
+echo "   /var/log/2openclaw/capacity.log"
+echo "   /var/log/2openclaw/cleanup.log"
+echo "   /var/log/2openclaw/backup.log"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

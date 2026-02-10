@@ -1,8 +1,8 @@
-# StartClaw 🦞
+# 2OpenClaw 🦞
 
 **Deploy OpenClaw in 60 seconds. No servers, no terminal, no BS.**
 
-StartClaw is a managed hosting platform for [OpenClaw](https://openclaw.ai) — the open-source personal AI assistant. We handle all the infrastructure so you can focus on using your AI.
+2OpenClaw is a managed hosting platform for [OpenClaw](https://openclaw.ai) — the open-source personal AI assistant. We handle all the infrastructure so you can focus on using your AI.
 
 ## Features
 
@@ -14,7 +14,7 @@ StartClaw is a managed hosting platform for [OpenClaw](https://openclaw.ai) — 
 
 ## How It Works
 
-1. **Sign up** at [startclaw.com](https://startclaw.com)
+1. **Sign up** at [2openclaw.vercel.app](https://2openclaw.vercel.app)
 2. **Create a Telegram bot** (we guide you step-by-step)
 3. **Paste your bot token**
 4. **Done!** Chat with your AI on Telegram

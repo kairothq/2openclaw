@@ -55,10 +55,10 @@ OpenClaw system prompt is ~10K+ tokens. Free APIs fail:
 ## Docker Settings
 ```bash
 docker run -d --name openclaw-{id} \
-  -v /opt/startclaw/data/instances/{id}:/home/node/.openclaw \
+  -v /opt/2openclaw/data/instances/{id}:/home/node/.openclaw \
   -p {port}:18789 --memory="1280m" --cpus="0.5" \
   -e NODE_OPTIONS="--max-old-space-size=768" \
-  ghcr.io/openclaw/openclaw:latest
+  ghcr.io/pspdfkit-labs/openclaw:latest
 ```
 
 ## API Endpoints (openclaw2:3000)
@@ -71,7 +71,7 @@ docker run -d --name openclaw-{id} \
 ## Vercel Env Vars
 ```
 GCP_API_URL=http://34.131.95.162:3000
-GCP_API_SECRET=startclaw2024secret
+GCP_API_SECRET=2openclaw2024secret
 ```
 
 ## SSH Access
