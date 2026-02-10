@@ -14,8 +14,19 @@ const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
 
+// Middleware imports
+const { validateProvisionInput, validateConfigUpdate } = require('./middleware/validation');
+const { provisionLimiter, apiLimiter, adminLimiter, webhookLimiter } = require('./middleware/rateLimit');
+
+// Service imports
+const { runCleanup, resetWarning, loadInstances, saveInstances } = require('./services/cleanup');
+const { selectBestVM, checkCapacity, getAllVMStatuses } = require('./services/vmSelector');
+
 const app = express();
 app.use(express.json());
+
+// Trust proxy for correct IP detection behind load balancers
+app.set('trust proxy', 1);
 
 // Config
 const PORT = process.env.PORT || 3000;
@@ -33,11 +44,22 @@ exec('curl -s ifconfig.me', (err, stdout) => {
     console.log(`External IP: ${EXTERNAL_IP}`);
 });
 
-// Middleware: Auth check
+// Middleware: Auth check for regular API
 const authMiddleware = (req, res, next) => {
     const token = req.headers['x-api-key'];
     if (token !== API_SECRET) {
         return res.status(401).json({ error: 'Unauthorized' });
+    }
+    next();
+};
+
+// Middleware: Admin authentication (uses Bearer token)
+const authenticateAdmin = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.replace('Bearer ', '');
+
+    if (token !== API_SECRET) {
+        return res.status(401).json({ error: 'Unauthorized - Admin access required' });
     }
     next();
 };
@@ -246,8 +268,8 @@ app.get('/instances/:userId', authMiddleware, async (req, res) => {
     }
 });
 
-// Provision new instance
-app.post('/provision', authMiddleware, async (req, res) => {
+// Provision new instance (with rate limiting and validation)
+app.post('/provision', provisionLimiter, authMiddleware, validateProvisionInput, async (req, res) => {
     const { userId, telegramToken, aiProvider, apiKey, ownerIds, plan } = req.body;
     
     if (!userId || !telegramToken) {
@@ -573,6 +595,316 @@ app.post('/validate/telegram', async (req, res) => {
     }
 });
 
+// ==================== ACTIVITY TRACKING ====================
+
+// Activity webhook - called by OpenClaw gateway on each message
+app.post('/webhooks/activity', webhookLimiter, async (req, res) => {
+    try {
+        const { userId, eventType, timestamp, messageCount } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'userId required' });
+        }
+
+        // Load user data
+        const userFile = path.join(DATA_DIR, 'users', `${userId}.json`);
+        let userData = {};
+
+        try {
+            userData = JSON.parse(await fs.readFile(userFile, 'utf8'));
+        } catch {
+            // User not found - may be a stale webhook
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Update activity
+        userData.lastActivityAt = timestamp || new Date().toISOString();
+        userData.messageCount = (userData.messageCount || 0) + 1;
+
+        // Reset warning if user was warned
+        if (userData.warningSentAt) {
+            delete userData.warningSentAt;
+            console.log(`[activity] Reset warning for ${userId} due to activity`);
+        }
+
+        // Reactivate if suspended
+        if (userData.status === 'suspended') {
+            userData.status = 'active';
+            delete userData.suspendedAt;
+            console.log(`[activity] Reactivated ${userId} due to activity`);
+
+            // Restart container
+            try {
+                await runCommand(`docker start openclaw-${userId}`);
+            } catch (e) {
+                console.error(`[activity] Failed to restart container for ${userId}`);
+            }
+        }
+
+        await fs.writeFile(userFile, JSON.stringify(userData, null, 2));
+        console.log(`[activity] Updated activity for ${userId}`);
+
+        res.json({ status: 'ok', messageCount: userData.messageCount });
+    } catch (error) {
+        console.error('[activity] Error:', error);
+        res.status(500).json({ error: 'Internal error' });
+    }
+});
+
+// ==================== ADMIN ENDPOINTS ====================
+
+// Get all instances (admin)
+app.get('/admin/instances', adminLimiter, authenticateAdmin, async (req, res) => {
+    try {
+        // Get container statuses
+        const { stdout } = await runCommand('docker ps -a --filter "name=openclaw-" --format "{{.Names}},{{.Status}},{{.State}}"');
+
+        const containerStatuses = {};
+        stdout.trim().split('\n').filter(Boolean).forEach(line => {
+            const [name, status, state] = line.split(',');
+            const userId = name.replace('openclaw-', '');
+            containerStatuses[userId] = { status, state };
+        });
+
+        // Get user data
+        const usersDir = path.join(DATA_DIR, 'users');
+        const files = await fs.readdir(usersDir).catch(() => []);
+
+        const instances = [];
+        for (const file of files) {
+            if (!file.endsWith('.json')) continue;
+
+            const userId = file.replace('.json', '');
+            try {
+                const userData = JSON.parse(await fs.readFile(path.join(usersDir, file), 'utf8'));
+                instances.push({
+                    userId,
+                    email: userData.email,
+                    tier: userData.tier || userData.plan || 'trial',
+                    status: userData.status || 'active',
+                    containerStatus: containerStatuses[userId]?.state || 'unknown',
+                    createdAt: userData.createdAt,
+                    lastActivityAt: userData.lastActivityAt,
+                    messageCount: userData.messageCount || 0,
+                    vmHost: userData.vmHost || 'openclaw2'
+                    // Note: API keys are never exposed
+                });
+            } catch (e) {
+                console.error(`[admin] Failed to read user ${userId}:`, e.message);
+            }
+        }
+
+        res.json({
+            total: instances.length,
+            instances: instances.sort((a, b) =>
+                new Date(b.createdAt) - new Date(a.createdAt)
+            )
+        });
+    } catch (error) {
+        console.error('[admin] Error listing instances:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get system health
+app.get('/admin/health', adminLimiter, authenticateAdmin, async (req, res) => {
+    try {
+        const vmStatuses = await getAllVMStatuses();
+        const alerts = await checkCapacity();
+
+        res.json({
+            status: alerts.filter(a => a.level === 'critical').length > 0 ? 'critical' :
+                    alerts.filter(a => a.level === 'warning').length > 0 ? 'warning' : 'healthy',
+            vms: vmStatuses,
+            alerts,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('[admin] Health check error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Perform admin action on instance
+app.post('/admin/instances/:userId/action', adminLimiter, authenticateAdmin, async (req, res) => {
+    const { userId } = req.params;
+    const { action } = req.body;
+    const containerName = `openclaw-${userId}`;
+
+    const validActions = ['restart', 'stop', 'start', 'delete', 'suspend'];
+    if (!validActions.includes(action)) {
+        return res.status(400).json({
+            error: `Invalid action. Must be one of: ${validActions.join(', ')}`
+        });
+    }
+
+    try {
+        const userFile = path.join(DATA_DIR, 'users', `${userId}.json`);
+        let userData = {};
+        try {
+            userData = JSON.parse(await fs.readFile(userFile, 'utf8'));
+        } catch {}
+
+        switch (action) {
+            case 'restart':
+                await runCommand(`docker restart ${containerName}`);
+                userData.lastRestartAt = new Date().toISOString();
+                break;
+
+            case 'stop':
+                await runCommand(`docker stop ${containerName}`);
+                break;
+
+            case 'start':
+                await runCommand(`docker start ${containerName}`);
+                userData.status = 'active';
+                break;
+
+            case 'suspend':
+                await runCommand(`docker stop ${containerName}`);
+                userData.status = 'suspended';
+                userData.suspendedAt = new Date().toISOString();
+                break;
+
+            case 'delete':
+                await runCommand(`docker rm -f ${containerName}`);
+                await fs.rm(path.join(DATA_DIR, 'instances', userId), { recursive: true, force: true });
+                userData.status = 'deleted';
+                userData.deletedAt = new Date().toISOString();
+                break;
+        }
+
+        await fs.writeFile(userFile, JSON.stringify(userData, null, 2));
+
+        res.json({
+            status: 'success',
+            action,
+            userId,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error(`[admin] Action ${action} failed for ${userId}:`, error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Trigger inactive account cleanup (admin)
+app.post('/admin/cleanup-inactive', adminLimiter, authenticateAdmin, async (req, res) => {
+    try {
+        console.log('[admin] Manual cleanup triggered');
+        const results = await runCleanup();
+        res.json({
+            status: 'completed',
+            results,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('[admin] Cleanup error:', error);
+        res.status(500).json({ error: 'Cleanup failed', details: error.message });
+    }
+});
+
+// Get capacity alerts
+app.get('/admin/capacity', adminLimiter, authenticateAdmin, async (req, res) => {
+    try {
+        const alerts = await checkCapacity();
+        const vmStatuses = await getAllVMStatuses();
+
+        // Calculate totals
+        const totals = vmStatuses.reduce((acc, vm) => {
+            acc.totalContainers += vm.containerCount || 0;
+            acc.maxContainers += vm.maxContainers || 0;
+            return acc;
+        }, { totalContainers: 0, maxContainers: 0 });
+
+        res.json({
+            capacityUsed: Math.round((totals.totalContainers / totals.maxContainers) * 100),
+            totalContainers: totals.totalContainers,
+            maxContainers: totals.maxContainers,
+            availableSlots: totals.maxContainers - totals.totalContainers,
+            alerts,
+            vms: vmStatuses.map(vm => ({
+                host: vm.host,
+                containerCount: vm.containerCount,
+                maxContainers: vm.maxContainers,
+                ramUsedPercent: vm.ramUsedPercent,
+                healthy: vm.healthy
+            }))
+        });
+    } catch (error) {
+        console.error('[admin] Capacity check error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ==================== API VALIDATION ENDPOINTS ====================
+
+// Validate API key with provider
+app.post('/validate/api-key', apiLimiter, async (req, res) => {
+    const { provider, apiKey } = req.body;
+
+    if (!provider || !apiKey) {
+        return res.status(400).json({ error: 'provider and apiKey required' });
+    }
+
+    try {
+        let valid = false;
+        let error = null;
+
+        switch (provider) {
+            case 'anthropic':
+                const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-5-20241022',
+                        max_tokens: 1,
+                        messages: [{ role: 'user', content: 'hi' }]
+                    })
+                });
+                if (anthropicRes.status === 401) {
+                    error = 'Invalid API key';
+                } else if (anthropicRes.status === 429) {
+                    valid = true; // Key is valid but rate limited
+                } else {
+                    valid = true;
+                }
+                break;
+
+            case 'openai':
+                const openaiRes = await fetch('https://api.openai.com/v1/models', {
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                });
+                valid = openaiRes.status !== 401;
+                if (!valid) error = 'Invalid API key';
+                break;
+
+            case 'google':
+            case 'gemini':
+                const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                valid = geminiRes.status !== 400 && geminiRes.status !== 403;
+                if (!valid) error = 'Invalid API key';
+                break;
+
+            default:
+                // Skip validation for unknown providers
+                valid = true;
+        }
+
+        res.json({ valid, error, provider });
+    } catch (err) {
+        console.error('[validate] API key validation error:', err);
+        // On network error, assume key is valid
+        res.json({ valid: true, warning: 'Could not verify key due to network error' });
+    }
+});
+
+// ==================== SERVER STARTUP ====================
+
 // Create data directories
 const initDataDirs = async () => {
     await fs.mkdir(path.join(DATA_DIR, 'users'), { recursive: true });
@@ -583,5 +915,7 @@ const initDataDirs = async () => {
 initDataDirs().then(() => {
     app.listen(PORT, () => {
         console.log(`🦞 2OpenClaw API running on port ${PORT}`);
+        console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`   Data directory: ${DATA_DIR}`);
     });
 });

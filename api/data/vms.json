@@ -1,0 +1,10 @@
+{
+    "openclaw2": {
+        "host": "openclaw2",
+        "ip": "34.131.95.162",
+        "zone": "asia-south2-c",
+        "maxContainers": 8,
+        "ramGB": 16,
+        "status": "active"
+    }
+}

@@ -72,20 +72,43 @@ fi
 # Step 5: Create StartClaw directories
 log_info "Creating directories..."
 mkdir -p /opt/startclaw/{scripts,data,logs,api}
+mkdir -p /opt/startclaw/data/{users,instances}
+mkdir -p /opt/startclaw/api/{services,middleware,data}
+mkdir -p /var/log/startclaw
 mkdir -p /backups
 chown -R $ACTUAL_USER:$ACTUAL_USER /opt/startclaw
+chown -R $ACTUAL_USER:$ACTUAL_USER /var/log/startclaw
 chown -R $ACTUAL_USER:$ACTUAL_USER /backups
 log_success "Directories created"
 
-# Step 6: Download scripts
+# Step 6: Download scripts and API files
 log_info "Downloading StartClaw scripts..."
 REPO_RAW="https://raw.githubusercontent.com/kairothq/2openclaw/main"
+
+# Infrastructure scripts
 curl -fsSL "$REPO_RAW/infra/scripts/backup.sh" -o /opt/startclaw/scripts/backup.sh
 curl -fsSL "$REPO_RAW/infra/scripts/restore.sh" -o /opt/startclaw/scripts/restore.sh
+curl -fsSL "$REPO_RAW/infra/scripts/health_monitor.sh" -o /opt/startclaw/scripts/health_monitor.sh
+curl -fsSL "$REPO_RAW/infra/scripts/cleanup_inactive.sh" -o /opt/startclaw/scripts/cleanup_inactive.sh
+curl -fsSL "$REPO_RAW/infra/scripts/capacity_check.sh" -o /opt/startclaw/scripts/capacity_check.sh
+chmod +x /opt/startclaw/scripts/*.sh
+
+# API server files
 curl -fsSL "$REPO_RAW/api/server.js" -o /opt/startclaw/api/server.js
 curl -fsSL "$REPO_RAW/api/package.json" -o /opt/startclaw/api/package.json
-chmod +x /opt/startclaw/scripts/*.sh
-log_success "Scripts downloaded"
+
+# API services
+curl -fsSL "$REPO_RAW/api/services/cleanup.js" -o /opt/startclaw/api/services/cleanup.js
+curl -fsSL "$REPO_RAW/api/services/vmSelector.js" -o /opt/startclaw/api/services/vmSelector.js
+
+# API middleware
+curl -fsSL "$REPO_RAW/api/middleware/validation.js" -o /opt/startclaw/api/middleware/validation.js
+curl -fsSL "$REPO_RAW/api/middleware/rateLimit.js" -o /opt/startclaw/api/middleware/rateLimit.js
+
+# API data
+curl -fsSL "$REPO_RAW/api/data/vms.json" -o /opt/startclaw/api/data/vms.json
+
+log_success "Scripts and API files downloaded"
 
 # Step 7: Pull OpenClaw Docker image
 log_info "Pulling OpenClaw Docker image (this may take a minute)..."
@@ -140,10 +163,30 @@ systemctl daemon-reload
 systemctl enable startclaw-api
 log_success "API service created"
 
-# Step 11: Setup daily backup cron
-log_info "Setting up daily backups..."
-echo "0 3 * * * /opt/startclaw/scripts/backup.sh >> /opt/startclaw/logs/backup.log 2>&1" | crontab -
-log_success "Daily backup scheduled at 3 AM"
+# Step 11: Setup cron jobs
+log_info "Setting up scheduled jobs..."
+
+# Create cron job entries
+CRON_JOBS=$(cat << 'CRON'
+# StartClaw Scheduled Jobs
+# Daily backup at 3 AM
+0 3 * * * /opt/startclaw/scripts/backup.sh >> /var/log/startclaw/backup.log 2>&1
+# Health check every 5 minutes
+*/5 * * * * /opt/startclaw/scripts/health_monitor.sh >> /var/log/startclaw/health.log 2>&1
+# Capacity check every 15 minutes
+*/15 * * * * /opt/startclaw/scripts/capacity_check.sh >> /var/log/startclaw/capacity.log 2>&1
+# Inactive account cleanup daily at 2 AM
+0 2 * * * /opt/startclaw/scripts/cleanup_inactive.sh >> /var/log/startclaw/cleanup.log 2>&1
+CRON
+)
+
+# Install cron jobs for the user
+echo "$CRON_JOBS" | crontab -u $ACTUAL_USER -
+log_success "Scheduled jobs configured:
+   - Backup: Daily at 3 AM
+   - Health Monitor: Every 5 minutes
+   - Capacity Check: Every 15 minutes
+   - Cleanup: Daily at 2 AM"
 
 # Step 12: Open firewall ports
 log_info "Configuring firewall..."
@@ -166,12 +209,37 @@ echo ""
 echo "External IP: $EXTERNAL_IP"
 echo ""
 echo "Next steps:"
-echo "1. Create .env file: nano /opt/startclaw/api/.env"
-echo "   Add: GROQ_API_KEY=gsk_your_key_here"
-echo "   Add: API_SECRET=$(openssl rand -hex 32)"
+echo "1. Create .env file:"
+echo "   nano /opt/startclaw/api/.env"
 echo ""
-echo "2. Start the API: sudo systemctl start startclaw-api"
+echo "   Required variables:"
+echo "   API_SECRET=$(openssl rand -hex 32)"
+echo "   DATA_DIR=/opt/startclaw/data"
 echo ""
-echo "3. Test: curl http://localhost:3000/health"
+echo "   Optional (for default trial instances):"
+echo "   GEMINI_API_KEY=your_key_here"
+echo "   GROQ_API_KEY=your_key_here"
+echo ""
+echo "   Optional (for alerts):"
+echo "   ALERT_WEBHOOK_URL=https://hooks.slack.com/..."
+echo ""
+echo "2. Start the API:"
+echo "   sudo systemctl start startclaw-api"
+echo ""
+echo "3. Test endpoints:"
+echo "   curl http://localhost:3000/health"
+echo "   curl -H 'Authorization: Bearer YOUR_SECRET' http://localhost:3000/admin/health"
+echo ""
+echo "Scheduled jobs running:"
+echo "   - Health monitor: Every 5 min"
+echo "   - Capacity check: Every 15 min"
+echo "   - Cleanup: Daily at 2 AM"
+echo "   - Backup: Daily at 3 AM"
+echo ""
+echo "Logs:"
+echo "   /var/log/startclaw/health.log"
+echo "   /var/log/startclaw/capacity.log"
+echo "   /var/log/startclaw/cleanup.log"
+echo "   /var/log/startclaw/backup.log"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
