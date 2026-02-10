@@ -98,14 +98,84 @@ for container in $(docker ps -a --filter "name=openclaw-" --format "{{.Names}}")
     fi
 done
 
+# ============================================
+# PHASE 2: Recover orphaned data directories
+# (data exists but container was deleted)
+# ============================================
+DATA_DIR="/opt/2openclaw/data/instances"
+RECOVERED=0
+
+log "Checking for orphaned data directories..."
+
+for data_dir in "$DATA_DIR"/*/; do
+    [ -d "$data_dir" ] || continue
+
+    user_id=$(basename "$data_dir")
+    container_name="openclaw-${user_id}"
+
+    # Skip if container exists (running or stopped)
+    if docker inspect "$container_name" >/dev/null 2>&1; then
+        continue
+    fi
+
+    # Check if openclaw.json exists (has credentials to recreate)
+    if [ ! -f "${data_dir}openclaw.json" ]; then
+        log "Orphaned directory $user_id has no config, skipping"
+        continue
+    fi
+
+    log "Found orphaned data for $user_id, attempting recovery..."
+
+    # Get port from users file
+    port=""
+    if [ -f "/opt/2openclaw/data/users/${user_id}.json" ]; then
+        port=$(grep -o '"port":[0-9]*' "/opt/2openclaw/data/users/${user_id}.json" | grep -o '[0-9]*')
+    fi
+
+    # Assign new port if not found
+    if [ -z "$port" ]; then
+        # Find max port in use
+        max_port=$(docker ps --format '{{.Ports}}' | grep -oE '0\.0\.0\.0:[0-9]+' | cut -d: -f2 | sort -n | tail -1)
+        port=$((max_port + 1))
+        [ "$port" -lt 18001 ] && port=18001
+    fi
+
+    # Recreate container
+    if docker run -d \
+        --name "$container_name" \
+        --restart unless-stopped \
+        -v "${data_dir%/}:/home/node/.openclaw" \
+        -p "${port}:18789" \
+        --memory="1536m" \
+        --cpus="1" \
+        -e NODE_OPTIONS="--max-old-space-size=1280" \
+        ghcr.io/openclaw/openclaw:latest 2>/dev/null; then
+
+        send_alert "info" "Recovered orphaned container $container_name on port $port"
+        log "Successfully recovered $container_name"
+        RECOVERED=$((RECOVERED + 1))
+
+        # Update Caddy if needed
+        subdomain="${user_id}.34.131.95.162.nip.io"
+        if ! grep -q "$subdomain" /etc/caddy/Caddyfile 2>/dev/null; then
+            echo -e "\n${subdomain} {\n    reverse_proxy localhost:${port}\n}" >> /etc/caddy/Caddyfile
+            systemctl reload caddy 2>/dev/null || true
+            log "Added Caddy route for $subdomain"
+        fi
+    else
+        send_alert "critical" "Failed to recover orphaned container $container_name"
+        CRITICAL=$((CRITICAL + 1))
+    fi
+done
+
 # Log summary
-log "Health check completed: Total=$TOTAL, Healthy=$HEALTHY, Restarted=$RESTARTED, Critical=$CRITICAL"
+log "Health check completed: Total=$TOTAL, Healthy=$HEALTHY, Restarted=$RESTARTED, Recovered=$RECOVERED, Critical=$CRITICAL"
 
 # Send summary alert if there were issues
 if [ "$CRITICAL" -gt 0 ]; then
     send_alert "critical" "Health check summary: $CRITICAL containers need attention!"
-elif [ "$RESTARTED" -gt 0 ]; then
-    send_alert "info" "Health check: Restarted $RESTARTED containers, all now healthy"
+elif [ "$RESTARTED" -gt 0 ] || [ "$RECOVERED" -gt 0 ]; then
+    send_alert "info" "Health check: Restarted=$RESTARTED, Recovered=$RECOVERED, all healthy"
 fi
 
 # Rotate log file if it gets too large (>10MB)
