@@ -114,21 +114,46 @@ const getUserPort = async (userId) => {
     }
 };
 
-// Helper: Add Caddy route
+// Helper: Add Caddy route via Caddy API (no file manipulation)
 const addCaddyRoute = async (userId, port) => {
     const subdomain = `${userId}.${EXTERNAL_IP}.nip.io`;
-    const routeBlock = `
-${subdomain} {
-    reverse_proxy localhost:${port}
-}
-`;
-    
-    // Append to Caddyfile
-    await fs.appendFile(CADDY_FILE, routeBlock);
-    
-    // Reload Caddy (not restart - requires admin endpoint enabled)
-    await runCommand('systemctl reload caddy');
-    
+
+    // Use Caddy Admin API to add route dynamically
+    const routeConfig = {
+        match: [{ host: [subdomain] }],
+        handle: [{
+            handler: "subroute",
+            routes: [{
+                handle: [{
+                    handler: "reverse_proxy",
+                    upstreams: [{ dial: `localhost:${port}` }]
+                }]
+            }]
+        }],
+        terminal: true
+    };
+
+    try {
+        // Add route via Caddy API
+        const response = await fetch('http://localhost:2019/config/apps/http/servers/srv0/routes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(routeConfig)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Caddy API error: ${response.status}`);
+        }
+
+        console.log(`Added Caddy route: ${subdomain} -> localhost:${port}`);
+    } catch (error) {
+        // Fallback to file-based method if API fails
+        console.error('Caddy API failed, falling back to file method:', error.message);
+        const routeBlock = `\n${subdomain} {\n    reverse_proxy localhost:${port}\n}\n`;
+        await fs.appendFile(CADDY_FILE, routeBlock);
+        await runCommand('systemctl reload caddy');
+    }
+
     return subdomain;
 };
 

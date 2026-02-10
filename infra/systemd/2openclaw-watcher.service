@@ -1,0 +1,18 @@
+[Unit]
+Description=2OpenClaw Container Watcher - Instant Recovery
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/opt/2openclaw/scripts/container-watcher.sh
+Restart=always
+RestartSec=5
+
+# Logging
+StandardOutput=append:/var/log/2openclaw/watcher.log
+StandardError=append:/var/log/2openclaw/watcher.log
+
+[Install]
+WantedBy=multi-user.target
