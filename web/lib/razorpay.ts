@@ -6,11 +6,21 @@
 import Razorpay from 'razorpay'
 import crypto from 'crypto'
 
-// Initialize Razorpay instance (server-side only)
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!
-})
+// Lazy initialization to avoid build-time errors
+let razorpayInstance: Razorpay | null = null
+
+function getRazorpay(): Razorpay {
+  if (!razorpayInstance) {
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      throw new Error('Razorpay credentials not configured')
+    }
+    razorpayInstance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    })
+  }
+  return razorpayInstance
+}
 
 // Plan configuration
 export const PLANS = {
@@ -41,7 +51,7 @@ export async function createPlans() {
 
   for (const [planId, config] of Object.entries(PLANS)) {
     try {
-      const plan = await razorpay.plans.create({
+      const plan = await getRazorpay().plans.create({
         period: 'monthly',
         interval: 1,
         item: {
@@ -62,22 +72,41 @@ export async function createPlans() {
   return createdPlans
 }
 
+export interface RazorpayCustomer {
+  id: string
+  email: string
+  name?: string
+  contact?: string
+}
+
 /**
  * Create a Razorpay customer
  */
-export async function createCustomer(email: string, name?: string, contact?: string) {
+export async function createCustomer(email: string, name?: string, contact?: string): Promise<RazorpayCustomer> {
   try {
-    const customer = await razorpay.customers.create({
+    const customer = await getRazorpay().customers.create({
       email,
       name: name || email.split('@')[0],
       contact: contact || undefined,
       fail_existing: 0 // Return existing customer if email matches
-    })
+    }) as unknown as RazorpayCustomer
     return customer
   } catch (error: any) {
     console.error('[razorpay] Failed to create customer:', error.message)
     throw error
   }
+}
+
+export interface RazorpaySubscription {
+  id: string
+  plan_id: string
+  customer_id: string
+  status: string
+  current_start?: number
+  current_end?: number
+  charge_at?: number
+  short_url?: string
+  notes?: Record<string, string>
 }
 
 /**
@@ -87,7 +116,7 @@ export async function createSubscription(
   customerId: string,
   planId: PlanId,
   options: { userId?: string } = {}
-) {
+): Promise<RazorpaySubscription> {
   const planRazorpayId = process.env[`RAZORPAY_PLAN_${planId.toUpperCase()}`]
 
   if (!planRazorpayId) {
@@ -95,7 +124,8 @@ export async function createSubscription(
   }
 
   try {
-    const subscription = await razorpay.subscriptions.create({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const subscription = await (getRazorpay().subscriptions.create as any)({
       plan_id: planRazorpayId,
       customer_id: customerId,
       total_count: 120, // Max 10 years
@@ -105,7 +135,7 @@ export async function createSubscription(
         userId: options.userId || '',
         plan: planId
       }
-    })
+    }) as RazorpaySubscription
 
     return subscription
   } catch (error: any) {
@@ -119,7 +149,7 @@ export async function createSubscription(
  */
 export async function getSubscription(subscriptionId: string) {
   try {
-    return await razorpay.subscriptions.fetch(subscriptionId)
+    return await getRazorpay().subscriptions.fetch(subscriptionId)
   } catch (error: any) {
     console.error('[razorpay] Failed to fetch subscription:', error.message)
     throw error
@@ -131,7 +161,7 @@ export async function getSubscription(subscriptionId: string) {
  */
 export async function cancelSubscription(subscriptionId: string, cancelAtCycleEnd = true) {
   try {
-    return await razorpay.subscriptions.cancel(subscriptionId, cancelAtCycleEnd)
+    return await getRazorpay().subscriptions.cancel(subscriptionId, cancelAtCycleEnd)
   } catch (error: any) {
     console.error('[razorpay] Failed to cancel subscription:', error.message)
     throw error
@@ -149,7 +179,7 @@ export async function updateSubscription(subscriptionId: string, newPlanId: Plan
   }
 
   try {
-    return await razorpay.subscriptions.update(subscriptionId, {
+    return await getRazorpay().subscriptions.update(subscriptionId, {
       plan_id: planRazorpayId,
       quantity: 1,
       schedule_change_at: 'now'
@@ -232,11 +262,11 @@ export function mapSubscriptionStatus(razorpayStatus: string): string {
  */
 export async function getPayment(paymentId: string) {
   try {
-    return await razorpay.payments.fetch(paymentId)
+    return await getRazorpay().payments.fetch(paymentId)
   } catch (error: any) {
     console.error('[razorpay] Failed to fetch payment:', error.message)
     throw error
   }
 }
 
-export default razorpay
+export { getRazorpay }
