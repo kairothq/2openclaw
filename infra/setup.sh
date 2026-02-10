@@ -1,7 +1,7 @@
 #!/bin/bash
 # StartClaw VM Setup Script
 # Run this on a fresh Ubuntu 22.04 VM
-# Usage: curl -fsSL https://raw.githubusercontent.com/mohanagsk/startclaw/main/infra/setup.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/kairothq/2openclaw/main/infra/setup.sh | bash
 
 set -e
 
@@ -79,8 +79,7 @@ log_success "Directories created"
 
 # Step 6: Download scripts
 log_info "Downloading StartClaw scripts..."
-REPO_RAW="https://raw.githubusercontent.com/mohanagsk/startclaw/main"
-curl -fsSL "$REPO_RAW/infra/scripts/provision.sh" -o /opt/startclaw/scripts/provision.sh
+REPO_RAW="https://raw.githubusercontent.com/kairothq/2openclaw/main"
 curl -fsSL "$REPO_RAW/infra/scripts/backup.sh" -o /opt/startclaw/scripts/backup.sh
 curl -fsSL "$REPO_RAW/infra/scripts/restore.sh" -o /opt/startclaw/scripts/restore.sh
 curl -fsSL "$REPO_RAW/api/server.js" -o /opt/startclaw/api/server.js
@@ -127,6 +126,7 @@ After=network.target docker.service
 Type=simple
 User=$ACTUAL_USER
 WorkingDirectory=/opt/startclaw/api
+EnvironmentFile=/opt/startclaw/api/.env
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=5
@@ -151,7 +151,7 @@ if command -v ufw &> /dev/null; then
     ufw allow 80/tcp
     ufw allow 443/tcp
     ufw allow 3000/tcp
-    ufw --force enable
+    # Note: Not enabling UFW - GCP firewall handles this; UFW can lock out SSH
 fi
 log_success "Firewall configured"
 

@@ -41,9 +41,16 @@
 **OpenClaw Config:**
 ```json
 {
-  "providers": {
-    "groq": {
-      "apiKey": "gsk_xxx..."
+  "env": {
+    "vars": {
+      "GROQ_API_KEY": "gsk_xxx..."
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "groq/gemma2-9b-it"
+      }
     }
   }
 }
@@ -59,9 +66,16 @@
 **OpenClaw Config:**
 ```json
 {
-  "providers": {
-    "google": {
-      "apiKey": "AIza..."
+  "env": {
+    "vars": {
+      "GEMINI_API_KEY": "AIza..."
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "google/gemini-2.0-flash"
+      }
     }
   }
 }
@@ -78,9 +92,16 @@
 **OpenClaw Config:**
 ```json
 {
-  "providers": {
-    "anthropic": {
-      "apiKey": "sk-ant-xxx..."
+  "env": {
+    "vars": {
+      "ANTHROPIC_API_KEY": "sk-ant-xxx..."
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "anthropic/claude-sonnet-4-5"
+      }
     }
   }
 }

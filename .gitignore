@@ -1,1 +1,7 @@
+node_modules/
+.env
+.env.*
+*.log
+.next/
+.vercel/
 web/node_modules/

@@ -1,10 +1,12 @@
 /**
  * 2OpenClaw Provisioning API
  * Handles creating, managing, and monitoring OpenClaw containers
- * 
+ *
  * IMPORTANT: This API creates OpenClaw instances with the correct config format.
  * See /docs/LESSONS_LEARNED.md for details on the config schema.
  */
+
+require('dotenv').config();
 
 const express = require('express');
 const { exec, spawn } = require('child_process');
@@ -413,9 +415,85 @@ app.delete('/instances/:userId', authMiddleware, async (req, res) => {
             await fs.rm(dataDir, { recursive: true, force: true });
         }
         
-        // TODO: Remove from Caddy config
-        
+        // Remove from Caddy config
+        try {
+            const caddyContent = await fs.readFile(CADDY_FILE, 'utf8');
+            const subdomain = `${userId}.${EXTERNAL_IP}.nip.io`;
+            // Remove the route block for this user
+            const routeRegex = new RegExp(`\\n${subdomain.replace(/\./g, '\\.')} \\{[^}]*\\}\\n?`, 'g');
+            const newContent = caddyContent.replace(routeRegex, '\n');
+            await fs.writeFile(CADDY_FILE, newContent);
+            await runCommand('systemctl reload caddy');
+        } catch (caddyErr) {
+            console.error('Failed to clean up Caddy route:', caddyErr);
+        }
+
+        // Remove port mapping
+        try {
+            const portsFile = path.join(DATA_DIR, 'ports.json');
+            const portsData = JSON.parse(await fs.readFile(portsFile, 'utf8'));
+            delete portsData[userId];
+            await fs.writeFile(portsFile, JSON.stringify(portsData, null, 2));
+        } catch {}
+
+        // Remove user data file
+        try {
+            await fs.rm(path.join(DATA_DIR, 'users', `${userId}.json`), { force: true });
+        } catch {}
+
         res.json({ success: true, message: 'Instance deleted' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update instance config (e.g., API key change)
+app.patch('/instances/:userId/config', authMiddleware, async (req, res) => {
+    const { userId } = req.params;
+    const { aiProvider, apiKey } = req.body;
+    const containerName = `openclaw-${userId}`;
+    const configPath = path.join(DATA_DIR, 'instances', userId, 'openclaw.json');
+
+    try {
+        // Read existing config
+        const configData = JSON.parse(await fs.readFile(configPath, 'utf8'));
+
+        // Update AI provider key
+        if (aiProvider && apiKey) {
+            // Clear old provider keys
+            delete configData.env.vars.GROQ_API_KEY;
+            delete configData.env.vars.GEMINI_API_KEY;
+            delete configData.env.vars.ANTHROPIC_API_KEY;
+            delete configData.env.vars.OPENAI_API_KEY;
+            delete configData.env.vars.OPENROUTER_API_KEY;
+
+            // Set new key and model
+            if (aiProvider === 'gemini' || aiProvider === 'google') {
+                configData.env.vars.GEMINI_API_KEY = apiKey;
+                configData.agents.defaults.model.primary = 'google/gemini-2.0-flash';
+            } else if (aiProvider === 'groq') {
+                configData.env.vars.GROQ_API_KEY = apiKey;
+                configData.agents.defaults.model.primary = 'groq/gemma2-9b-it';
+            } else if (aiProvider === 'anthropic') {
+                configData.env.vars.ANTHROPIC_API_KEY = apiKey;
+                configData.agents.defaults.model.primary = 'anthropic/claude-sonnet-4-5';
+            } else if (aiProvider === 'openai') {
+                configData.env.vars.OPENAI_API_KEY = apiKey;
+                configData.agents.defaults.model.primary = 'openai/gpt-4o';
+            } else if (aiProvider === 'openrouter') {
+                configData.env.vars.OPENROUTER_API_KEY = apiKey;
+                configData.agents.defaults.model.primary = 'openrouter/google/gemini-2.0-flash-exp:free';
+            }
+        }
+
+        // Write updated config
+        await fs.writeFile(configPath, JSON.stringify(configData, null, 2));
+        await runCommand(`chown 1000:1000 ${configPath}`);
+
+        // Restart container to pick up new config
+        await runCommand(`docker restart ${containerName}`);
+
+        res.json({ success: true, message: 'Config updated, instance restarting' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -18,6 +18,9 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const [instance, setInstance] = useState<InstanceData | null>(null)
   const [stats, setStats] = useState<{ cpu: string; memory: string } | null>(null)
+  const [logs, setLogs] = useState<string>('')
+  const [logsOpen, setLogsOpen] = useState(false)
+  const [logsLoading, setLogsLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState('')
@@ -73,6 +76,24 @@ function DashboardContent() {
         setStats(data)
       }
     } catch {}
+  }
+
+  const fetchLogs = async () => {
+    if (!instance) return
+    setLogsLoading(true)
+    try {
+      const res = await fetch(`/api/instance/${instance.userId}/logs?lines=200`)
+      const data = await res.json()
+      if (data.logs) {
+        setLogs(data.logs)
+      } else {
+        setLogs(data.error || 'Failed to fetch logs')
+      }
+    } catch {
+      setLogs('Failed to fetch logs')
+    } finally {
+      setLogsLoading(false)
+    }
   }
 
   const performAction = async (action: 'restart' | 'stop' | 'start') => {
@@ -285,6 +306,36 @@ function DashboardContent() {
             </div>
           </div>
         )}
+
+        {/* Logs Viewer */}
+        <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 md:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Instance Logs</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={fetchLogs}
+                disabled={logsLoading}
+                className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {logsLoading ? 'Loading...' : 'Refresh'}
+              </button>
+              <button
+                onClick={() => {
+                  setLogsOpen(!logsOpen)
+                  if (!logsOpen && !logs) fetchLogs()
+                }}
+                className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                {logsOpen ? 'Hide' : 'Show'}
+              </button>
+            </div>
+          </div>
+          {logsOpen && (
+            <pre className="bg-black rounded-lg p-4 text-xs text-green-400 font-mono overflow-auto max-h-96 whitespace-pre-wrap">
+              {logs || 'Click "Refresh" to load logs...'}
+            </pre>
+          )}
+        </div>
 
         {/* Help */}
         <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">

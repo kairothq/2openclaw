@@ -1,6 +1,7 @@
 #!/bin/bash
-# StartClaw Restore Script
+# 2OpenClaw Restore Script
 # Restores a user's OpenClaw instance from backup
+# Uses bind mount paths at /opt/startclaw/data/instances/{userId}/
 
 set -e
 
@@ -16,9 +17,11 @@ usage() {
 USER_ID="$1"
 DATE="${2:-latest}"
 GCS_BUCKET="gs://startclaw-backups"
-TEMP_DIR="/tmp/startclaw-restore"
+INSTANCES_DIR="/opt/startclaw/data/instances"
+DATA_DIR="${INSTANCES_DIR}/${USER_ID}"
+PORTS_FILE="/opt/startclaw/data/ports.json"
 CONTAINER_NAME="openclaw-${USER_ID}"
-VOLUME_NAME="openclaw-${USER_ID}"
+TEMP_DIR="/tmp/startclaw-restore"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
@@ -31,63 +34,78 @@ mkdir -p "$TEMP_DIR"
 
 # Find backup file
 if [ "$DATE" = "latest" ]; then
-    log "Finding latest backup..."
-    BACKUP_FILE=$(gsutil ls "$GCS_BUCKET/${USER_ID}/" 2>/dev/null | sort | tail -1)
-    if [ -z "$BACKUP_FILE" ]; then
-        log "ERROR: No backups found for $USER_ID"
-        exit 1
+    # Check local backups first
+    LOCAL_BACKUP=$(ls -t /backups/${USER_ID}-*.tar.gz 2>/dev/null | head -1)
+    if [ -n "$LOCAL_BACKUP" ]; then
+        log "Using local backup: $LOCAL_BACKUP"
+        cp "$LOCAL_BACKUP" "$TEMP_DIR/backup.tar.gz"
+    else
+        log "Finding latest backup from GCS..."
+        BACKUP_FILE=$(gsutil ls "$GCS_BUCKET/${USER_ID}/" 2>/dev/null | sort | tail -1)
+        if [ -z "$BACKUP_FILE" ]; then
+            log "ERROR: No backups found for $USER_ID"
+            exit 1
+        fi
+        log "Downloading: $BACKUP_FILE"
+        gsutil cp "$BACKUP_FILE" "$TEMP_DIR/backup.tar.gz"
     fi
 else
-    BACKUP_FILE="$GCS_BUCKET/${USER_ID}/${USER_ID}-${DATE}.tar.gz"
+    # Try local first, then GCS
+    LOCAL_BACKUP="/backups/${USER_ID}-${DATE}.tar.gz"
+    if [ -f "$LOCAL_BACKUP" ]; then
+        log "Using local backup: $LOCAL_BACKUP"
+        cp "$LOCAL_BACKUP" "$TEMP_DIR/backup.tar.gz"
+    else
+        BACKUP_FILE="$GCS_BUCKET/${USER_ID}/${USER_ID}-${DATE}.tar.gz"
+        log "Downloading: $BACKUP_FILE"
+        gsutil cp "$BACKUP_FILE" "$TEMP_DIR/backup.tar.gz"
+    fi
 fi
-
-log "Using backup: $BACKUP_FILE"
-
-# Download backup
-log "Downloading backup..."
-gsutil cp "$BACKUP_FILE" "$TEMP_DIR/backup.tar.gz"
 
 # Stop existing container if running
-if docker ps -q -f "name=$CONTAINER_NAME" | grep -q .; then
+if docker ps -a -q -f "name=$CONTAINER_NAME" | grep -q .; then
     log "Stopping existing container..."
-    docker stop "$CONTAINER_NAME"
-    docker rm "$CONTAINER_NAME"
+    docker rm -f "$CONTAINER_NAME"
 fi
 
-# Remove existing volume if it exists
-if docker volume inspect "$VOLUME_NAME" &>/dev/null; then
-    log "Removing old volume..."
-    docker volume rm "$VOLUME_NAME"
+# Restore data to bind mount path
+log "Restoring data to $DATA_DIR..."
+mkdir -p "$INSTANCES_DIR"
+rm -rf "$DATA_DIR"
+cd "$INSTANCES_DIR" && tar xzf "$TEMP_DIR/backup.tar.gz"
+
+# Fix ownership (uid 1000 = node user in container)
+chown -R 1000:1000 "$DATA_DIR"
+chmod 700 "$DATA_DIR"
+
+# Read port from ports.json
+PORT=18789
+if [ -f "$PORTS_FILE" ]; then
+    STORED_PORT=$(python3 -c "import json; print(json.load(open('$PORTS_FILE')).get('$USER_ID', ''))" 2>/dev/null || echo "")
+    if [ -n "$STORED_PORT" ]; then
+        PORT=$STORED_PORT
+    fi
 fi
 
-# Create new volume
-log "Creating new volume..."
-docker volume create "$VOLUME_NAME"
-
-# Restore data
-log "Restoring data..."
-docker run --rm \
-    -v "${VOLUME_NAME}":/data \
-    -v "$TEMP_DIR":/backup:ro \
-    alpine sh -c "cd /data && tar xzf /backup/backup.tar.gz"
-
-# Get next available port (simple approach - check config or use default)
-# In production, this would query the database
-PORT=$(grep -oP "(?<=$USER_ID:)\d+" /opt/startclaw/port-map.txt 2>/dev/null || echo "18789")
-
-# Start new container
-log "Starting container on port $PORT..."
+log "Starting container on port $PORT with 1280m memory..."
 docker run -d \
     --name "$CONTAINER_NAME" \
     --restart unless-stopped \
-    -v "${VOLUME_NAME}":/home/node/.openclaw \
+    -v "${DATA_DIR}":/home/node/.openclaw \
     -p "${PORT}:18789" \
-    --memory="512m" \
+    --memory="1280m" \
     --cpus="0.5" \
+    -e NODE_OPTIONS="--max-old-space-size=768" \
     ghcr.io/openclaw/openclaw:latest
 
 # Cleanup
 rm -rf "$TEMP_DIR"
 
-log "SUCCESS: $USER_ID restored and running on port $PORT"
-log "Update Caddy config if needed: ${USER_ID}.startclaw.com → localhost:$PORT"
+# Verify container is running
+sleep 3
+if docker ps -q -f "name=$CONTAINER_NAME" | grep -q .; then
+    log "SUCCESS: $USER_ID restored and running on port $PORT"
+else
+    log "ERROR: Container failed to start. Check: docker logs $CONTAINER_NAME"
+    exit 1
+fi

@@ -1,13 +1,15 @@
 #!/bin/bash
-# StartClaw Daily Backup Script
+# 2OpenClaw Daily Backup Script
 # Backs up all user OpenClaw data to Google Cloud Storage
+# Uses bind mount paths at /opt/startclaw/data/instances/{userId}/
 
 set -e
 
+INSTANCES_DIR="/opt/startclaw/data/instances"
 BACKUP_DIR="/backups"
 GCS_BUCKET="gs://startclaw-backups"
 DATE=$(date +%Y-%m-%d)
-LOG_FILE="/var/log/startclaw-backup.log"
+LOG_FILE="/opt/startclaw/logs/backup.log"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
@@ -18,48 +20,43 @@ mkdir -p "$BACKUP_DIR"
 
 log "Starting daily backup..."
 
-# Get all OpenClaw containers
-CONTAINERS=$(docker ps --filter "name=openclaw-" --format "{{.Names}}" 2>/dev/null || echo "")
+# Check if instances directory exists
+if [ ! -d "$INSTANCES_DIR" ]; then
+    log "No instances directory found at $INSTANCES_DIR"
+    exit 0
+fi
 
-if [ -z "$CONTAINERS" ]; then
-    log "No OpenClaw containers found"
+# Get all user directories
+USER_DIRS=$(ls -d "$INSTANCES_DIR"/*/ 2>/dev/null || echo "")
+
+if [ -z "$USER_DIRS" ]; then
+    log "No user instances found"
     exit 0
 fi
 
 BACKUP_COUNT=0
 ERROR_COUNT=0
 
-for container in $CONTAINERS; do
-    USER_ID=${container#openclaw-}
-    VOLUME_NAME="${container}-data"
+for user_dir in $USER_DIRS; do
+    USER_ID=$(basename "$user_dir")
     BACKUP_FILE="${USER_ID}-${DATE}.tar.gz"
-    
+
     log "Backing up $USER_ID..."
-    
-    # Check if volume exists
-    if ! docker volume inspect "$VOLUME_NAME" &>/dev/null; then
-        # Try alternative volume naming
-        VOLUME_NAME="openclaw-${USER_ID}"
-        if ! docker volume inspect "$VOLUME_NAME" &>/dev/null; then
-            log "WARNING: Volume not found for $USER_ID, skipping"
-            ((ERROR_COUNT++))
-            continue
-        fi
-    fi
-    
-    # Create backup
-    if docker run --rm \
-        -v "${VOLUME_NAME}":/data:ro \
-        -v "$BACKUP_DIR":/backup \
-        alpine tar czf "/backup/${BACKUP_FILE}" -C /data . 2>/dev/null; then
-        
+
+    # Tar the user directory directly (bind mount, no Docker volume commands)
+    if tar czf "$BACKUP_DIR/${BACKUP_FILE}" -C "$INSTANCES_DIR" "$USER_ID" 2>/dev/null; then
         # Upload to GCS
-        if gsutil -q cp "$BACKUP_DIR/${BACKUP_FILE}" "$GCS_BUCKET/${USER_ID}/" 2>/dev/null; then
-            log "SUCCESS: $USER_ID backed up to GCS"
-            ((BACKUP_COUNT++))
+        if command -v gsutil &>/dev/null; then
+            if gsutil -q cp "$BACKUP_DIR/${BACKUP_FILE}" "$GCS_BUCKET/${USER_ID}/" 2>/dev/null; then
+                log "SUCCESS: $USER_ID backed up to GCS"
+                ((BACKUP_COUNT++))
+            else
+                log "ERROR: Failed to upload $USER_ID to GCS"
+                ((ERROR_COUNT++))
+            fi
         else
-            log "ERROR: Failed to upload $USER_ID to GCS"
-            ((ERROR_COUNT++))
+            log "SUCCESS: $USER_ID backed up locally (gsutil not available)"
+            ((BACKUP_COUNT++))
         fi
     else
         log "ERROR: Failed to create backup for $USER_ID"
