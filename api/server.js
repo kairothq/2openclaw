@@ -180,7 +180,7 @@ const createConfig = (telegramToken, aiProvider, apiKey, ownerIds, gatewayToken)
     } else if (aiProvider === 'openrouter' && apiKey) {
         config.env.vars.OPENROUTER_API_KEY = apiKey;
         // Use free model - Gemini 2.0 Flash (free via OpenRouter)
-        config.agents.defaults.model.primary = 'openrouter/free';
+        config.agents.defaults.model.primary = 'openrouter/google/gemma-3-27b-it:free';
     } else if (GEMINI_API_KEY) {
         // Default: Gemini free tier (1M TPM - much better than Groq's 12K!)
         config.env.vars.GEMINI_API_KEY = GEMINI_API_KEY;
@@ -482,7 +482,7 @@ app.patch('/instances/:userId/config', authMiddleware, async (req, res) => {
                 configData.agents.defaults.model.primary = 'openai/gpt-4o';
             } else if (aiProvider === 'openrouter') {
                 configData.env.vars.OPENROUTER_API_KEY = apiKey;
-                configData.agents.defaults.model.primary = 'openrouter/free';
+                configData.agents.defaults.model.primary = 'openrouter/google/gemma-3-27b-it:free';
             }
         }
 
