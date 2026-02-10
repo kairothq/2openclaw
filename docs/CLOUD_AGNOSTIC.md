@@ -175,7 +175,7 @@ The OpenClaw Docker image works on any provider:
 
 ```bash
 # Same command everywhere
-docker pull ghcr.io/pspdfkit-labs/openclaw:latest
+docker pull ghcr.io/openclaw/openclaw:latest
 
 docker run -d \
     --name openclaw-$USER_ID \
@@ -185,7 +185,7 @@ docker run -d \
     --memory="1536m" \
     --cpus="1" \
     -e NODE_OPTIONS="--max-old-space-size=1280" \
-    ghcr.io/pspdfkit-labs/openclaw:latest
+    ghcr.io/openclaw/openclaw:latest
 ```
 
 ---

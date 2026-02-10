@@ -58,7 +58,7 @@ docker run -d --name openclaw-{id} \
   -v /opt/2openclaw/data/instances/{id}:/home/node/.openclaw \
   -p {port}:18789 --memory="1280m" --cpus="0.5" \
   -e NODE_OPTIONS="--max-old-space-size=768" \
-  ghcr.io/pspdfkit-labs/openclaw:latest
+  ghcr.io/openclaw/openclaw:latest
 ```
 
 ## API Endpoints (openclaw2:3000)

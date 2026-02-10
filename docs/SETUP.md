@@ -114,7 +114,7 @@ sudo systemctl reload caddy
 
 ```bash
 # Pull OpenClaw image
-docker pull ghcr.io/pspdfkit-labs/openclaw:latest
+docker pull ghcr.io/openclaw/openclaw:latest
 
 # Create volume for persistence
 docker volume create openclaw-test
@@ -127,7 +127,7 @@ docker run -d \
   -p 18789:18789 \
   --memory="1536m" \
   --cpus="0.5" \
-  ghcr.io/pspdfkit-labs/openclaw:latest
+  ghcr.io/openclaw/openclaw:latest
 ```
 
 ### Step 8: Run onboarding

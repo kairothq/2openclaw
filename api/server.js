@@ -338,7 +338,7 @@ app.post('/provision', provisionLimiter, authMiddleware, validateProvisionInput,
             --memory="${memory}" \
             --cpus="${cpus}" \
             -e NODE_OPTIONS="--max-old-space-size=${heapSize}" \
-            ghcr.io/pspdfkit-labs/openclaw:latest`);
+            ghcr.io/openclaw/openclaw:latest`);
         
         // Save port mapping
         await savePort(userId, port);

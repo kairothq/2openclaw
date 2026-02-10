@@ -398,7 +398,7 @@ docker run -d \
     --health-interval=30s \
     --health-timeout=10s \
     --health-retries=3 \
-    ghcr.io/pspdfkit-labs/openclaw:latest
+    ghcr.io/openclaw/openclaw:latest
 ```
 
 **OpenClaw Config Schema** (`openclaw.json`):
