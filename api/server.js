@@ -676,6 +676,150 @@ app.post('/webhooks/activity', webhookLimiter, async (req, res) => {
     }
 });
 
+// ==================== SUBSCRIPTION STATUS (Called by Vercel) ====================
+
+// Plan resources - used for container sizing
+const PLAN_RESOURCES = {
+    free: { memory: '1280m', cpus: '0.5' },
+    starter: { memory: '1536m', cpus: '0.5' },
+    pro: { memory: '3072m', cpus: '1.0' },
+    business: { memory: '4096m', cpus: '2.0' }
+};
+
+// Update subscription status (called by Vercel after Razorpay events)
+// This keeps all Razorpay keys on Vercel - GCP only manages containers
+app.post('/subscriptions/update-status', apiLimiter, authMiddleware, async (req, res) => {
+    try {
+        const {
+            userId,
+            email,
+            razorpayCustomerId,
+            razorpaySubscriptionId,
+            subscriptionStatus,
+            plan,
+            currentPeriodEnd,
+            nextBillingDate,
+            paymentId,
+            paymentAmount,
+            action // 'start', 'stop', or 'upgrade'
+        } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'userId is required' });
+        }
+
+        const userFile = path.join(DATA_DIR, 'users', `${userId}.json`);
+        let userData = {};
+
+        try {
+            userData = JSON.parse(await fs.readFile(userFile, 'utf8'));
+        } catch {
+            // User file doesn't exist yet - that's fine for new users
+        }
+
+        // Update user data with subscription info
+        if (email) userData.email = email;
+        if (razorpayCustomerId) userData.razorpayCustomerId = razorpayCustomerId;
+        if (razorpaySubscriptionId) userData.razorpaySubscriptionId = razorpaySubscriptionId;
+        if (subscriptionStatus) userData.subscriptionStatus = subscriptionStatus;
+        if (plan) userData.plan = plan;
+        if (currentPeriodEnd) userData.currentPeriodEnd = currentPeriodEnd;
+        if (nextBillingDate) userData.nextBillingDate = nextBillingDate;
+        if (paymentId) {
+            userData.lastPaymentId = paymentId;
+            userData.lastPaymentAt = new Date().toISOString();
+        }
+        if (paymentAmount) userData.lastPaymentAmount = paymentAmount;
+
+        // Clear trial expiry for active subscriptions
+        if (subscriptionStatus === 'ACTIVE') {
+            delete userData.expiresAt;
+            delete userData.paymentFailedAt;
+            delete userData.paymentFailureCount;
+            delete userData.gracePeriodEndsAt;
+        }
+
+        // Handle suspended/cancelled states
+        if (subscriptionStatus === 'SUSPENDED') {
+            userData.suspendedAt = new Date().toISOString();
+        }
+        if (subscriptionStatus === 'CANCELLED') {
+            userData.cancelledAt = new Date().toISOString();
+        }
+
+        await fs.writeFile(userFile, JSON.stringify(userData, null, 2));
+        console.log(`[subscriptions] Updated status for ${userId}: ${subscriptionStatus}`);
+
+        // Handle container actions
+        const containerName = `openclaw-${userId}`;
+
+        if (action === 'start') {
+            const resources = PLAN_RESOURCES[plan] || PLAN_RESOURCES.free;
+            try {
+                await runCommand(`docker start ${containerName}`);
+                await runCommand(`docker update --memory="${resources.memory}" --cpus="${resources.cpus}" ${containerName}`);
+                console.log(`[subscriptions] Started container for ${userId}`);
+            } catch (e) {
+                console.error(`[subscriptions] Failed to start container:`, e.message);
+            }
+        } else if (action === 'stop') {
+            try {
+                await runCommand(`docker stop ${containerName}`);
+                console.log(`[subscriptions] Stopped container for ${userId}`);
+            } catch (e) {
+                console.error(`[subscriptions] Failed to stop container:`, e.message);
+            }
+        } else if (action === 'upgrade' && plan) {
+            const resources = PLAN_RESOURCES[plan];
+            try {
+                await runCommand(`docker update --memory="${resources.memory}" --cpus="${resources.cpus}" ${containerName}`);
+                console.log(`[subscriptions] Upgraded container resources for ${userId} to ${plan}`);
+            } catch (e) {
+                console.error(`[subscriptions] Failed to upgrade container:`, e.message);
+            }
+        }
+
+        res.json({ success: true, status: subscriptionStatus });
+    } catch (error) {
+        console.error('[subscriptions] Update status error:', error);
+        res.status(500).json({ error: error.message || 'Failed to update status' });
+    }
+});
+
+// Get subscription status (from local data - no Razorpay call)
+app.get('/subscriptions/:userId', apiLimiter, authMiddleware, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const userFile = path.join(DATA_DIR, 'users', `${userId}.json`);
+
+        let userData;
+        try {
+            userData = JSON.parse(await fs.readFile(userFile, 'utf8'));
+        } catch {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Calculate days remaining for trial
+        let daysRemaining = null;
+        if (userData.expiresAt) {
+            daysRemaining = Math.max(0, Math.ceil((new Date(userData.expiresAt) - new Date()) / (1000 * 60 * 60 * 24)));
+        }
+
+        res.json({
+            userId,
+            plan: userData.plan || 'free',
+            subscriptionStatus: userData.subscriptionStatus || 'TRIAL',
+            trialEndsAt: userData.expiresAt,
+            daysRemaining,
+            currentPeriodEnd: userData.currentPeriodEnd,
+            nextBillingDate: userData.nextBillingDate
+        });
+    } catch (error) {
+        console.error('[subscriptions] Get error:', error);
+        res.status(500).json({ error: error.message || 'Failed to get subscription' });
+    }
+});
+
 // ==================== ADMIN ENDPOINTS ====================
 
 // Get all instances (admin)
