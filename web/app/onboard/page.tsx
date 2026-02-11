@@ -8,10 +8,10 @@ type Step = 'email' | 'telegram' | 'token' | 'userid' | 'ai' | 'plan' | 'payment
 const STEPS = ['email', 'telegram', 'token', 'userid', 'ai', 'plan', 'payment', 'deploy', 'done']
 
 const PLANS = [
-  { id: 'free', name: 'Free Trial', price: '₹0', period: '7 days', features: ['1.5GB RAM', 'Basic Support', 'Single Bot'] },
-  { id: 'starter', name: 'Starter', price: '₹199', period: '/month', features: ['1.5GB RAM', 'Priority Support', 'Single Bot'], popular: false },
-  { id: 'pro', name: 'Pro', price: '₹499', period: '/month', features: ['3GB RAM', 'Priority Support', 'Custom Prompts'], popular: true },
-  { id: 'business', name: 'Business', price: '₹1,499', period: '/month', features: ['4GB RAM', 'Custom Domain', 'Priority Support'] }
+  { id: 'free', name: 'Free Trial', price: '₹0', period: '7 days', features: ['1.5GB RAM', 'BYOK (Your API Key)', 'Test your bot'] },
+  { id: 'starter', name: 'Starter', price: '₹199', period: '/month', features: ['1.5GB RAM', 'BYOK (Your API Key)', 'Email Support'], popular: false },
+  { id: 'pro', name: 'Pro', price: '₹499', period: '/month', features: ['3GB RAM', 'BYOK (Your API Key)', 'Priority Support'], popular: true },
+  { id: 'business', name: 'Business', price: '₹1,499', period: '/month', features: ['4GB RAM', 'BYOK (Your API Key)', 'Priority Support'] }
 ]
 
 declare global {
@@ -28,7 +28,7 @@ function OnboardContent() {
   const [email, setEmail] = useState('')
   const [telegramToken, setTelegramToken] = useState('')
   const [telegramUserId, setTelegramUserId] = useState('')
-  const [aiProvider, setAiProvider] = useState('openrouter')
+  const [aiProvider, setAiProvider] = useState('gemini')
   const [apiKey, setApiKey] = useState('')
   const [selectedPlan, setSelectedPlan] = useState(initialPlan)
   const [isValidating, setIsValidating] = useState(false)
@@ -503,11 +503,9 @@ function OnboardContent() {
             <div className="space-y-6">
               <div className="space-y-3">
                 {[
-                  { id: 'openrouter', name: 'OpenRouter (Free)', desc: 'Access free models — Gemini, Llama, and more', recommended: true },
-                  { id: 'gemini', name: 'Google Gemini', desc: 'Gemini 2.0 Flash — Direct from Google' },
-                  { id: 'anthropic', name: 'Anthropic', desc: 'Claude — Best quality (requires API key)' },
-                  { id: 'openai', name: 'OpenAI', desc: 'GPT-4 — Popular choice (requires API key)' },
-                  { id: 'groq', name: 'Groq', desc: 'Llama 3 — Ultra fast (requires API key)' }
+                  { id: 'gemini', name: 'Google Gemini', desc: 'Gemini 2.0 Flash — Fast & affordable', recommended: true },
+                  { id: 'openai', name: 'OpenAI', desc: 'GPT-4o — Most popular choice' },
+                  { id: 'anthropic', name: 'Anthropic', desc: 'Claude — Best for reasoning & code' }
                 ].map((provider) => (
                   <button
                     key={provider.id}
@@ -533,30 +531,6 @@ function OnboardContent() {
                 ))}
               </div>
 
-              {/* OpenRouter instructions */}
-              {aiProvider === 'openrouter' && (
-                <div className="bg-gray-800 rounded-xl p-6">
-                  <h3 className="font-semibold mb-4">Get your free OpenRouter API key:</h3>
-                  <ol className="space-y-3 text-gray-300 text-sm">
-                    <li className="flex gap-3">
-                      <span className="bg-lobster-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0">1</span>
-                      <span>Go to <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-lobster-400 underline">openrouter.ai/keys</a></span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="bg-lobster-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0">2</span>
-                      <span>Sign up with Google (free, no credit card)</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="bg-lobster-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0">3</span>
-                      <span>Click "Create Key" and copy it</span>
-                    </li>
-                  </ol>
-                  <p className="text-xs text-gray-500 mt-4">
-                    Free tier includes: Gemini 2.0 Flash, Llama 3.2, and more — no charges ever
-                  </p>
-                </div>
-              )}
-
               {/* Gemini instructions */}
               {aiProvider === 'gemini' && (
                 <div className="bg-gray-800 rounded-xl p-6">
@@ -575,32 +549,81 @@ function OnboardContent() {
                       <span>Copy the key and paste below</span>
                     </li>
                   </ol>
+                  <p className="text-xs text-gray-500 mt-4">
+                    Free tier: 1,500 requests/day. Paid: ~$0.50/1M tokens
+                  </p>
                 </div>
               )}
 
-              {/* API Key input for providers that need it */}
-              {(aiProvider === 'openrouter' || aiProvider === 'gemini' || aiProvider === 'anthropic' || aiProvider === 'openai' || aiProvider === 'groq') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
-                    {aiProvider === 'openrouter' ? 'OpenRouter' :
-                     aiProvider === 'gemini' ? 'Gemini' :
-                     aiProvider === 'anthropic' ? 'Anthropic' :
-                     aiProvider === 'groq' ? 'Groq' : 'OpenAI'} API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder={
-                      aiProvider === 'openrouter' ? 'sk-or-v1-...' :
-                      aiProvider === 'gemini' ? 'AIza...' :
-                      aiProvider === 'anthropic' ? 'sk-ant-...' :
-                      aiProvider === 'groq' ? 'gsk_...' : 'sk-...'
-                    }
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-lobster-500"
-                  />
+              {/* OpenAI instructions */}
+              {aiProvider === 'openai' && (
+                <div className="bg-gray-800 rounded-xl p-6">
+                  <h3 className="font-semibold mb-4">Get your OpenAI API key:</h3>
+                  <ol className="space-y-3 text-gray-300 text-sm">
+                    <li className="flex gap-3">
+                      <span className="bg-lobster-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0">1</span>
+                      <span>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-lobster-400 underline">platform.openai.com/api-keys</a></span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="bg-lobster-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0">2</span>
+                      <span>Sign in and click "Create new secret key"</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="bg-lobster-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0">3</span>
+                      <span>Copy the key (starts with sk-)</span>
+                    </li>
+                  </ol>
+                  <p className="text-xs text-gray-500 mt-4">
+                    Pricing: ~$5/1M input tokens, ~$15/1M output tokens (GPT-4o)
+                  </p>
                 </div>
               )}
+
+              {/* Anthropic instructions */}
+              {aiProvider === 'anthropic' && (
+                <div className="bg-gray-800 rounded-xl p-6">
+                  <h3 className="font-semibold mb-4">Get your Anthropic API key:</h3>
+                  <ol className="space-y-3 text-gray-300 text-sm">
+                    <li className="flex gap-3">
+                      <span className="bg-lobster-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0">1</span>
+                      <span>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-lobster-400 underline">console.anthropic.com/settings/keys</a></span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="bg-lobster-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0">2</span>
+                      <span>Sign in and click "Create Key"</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="bg-lobster-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0">3</span>
+                      <span>Copy the key (starts with sk-ant-)</span>
+                    </li>
+                  </ol>
+                  <p className="text-xs text-gray-500 mt-4">
+                    Pricing: ~$3/1M input, ~$15/1M output (Claude Sonnet)
+                  </p>
+                </div>
+              )}
+
+              {/* API Key input - BYOK required */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  {aiProvider === 'gemini' ? 'Google Gemini' :
+                   aiProvider === 'anthropic' ? 'Anthropic' : 'OpenAI'} API Key
+                  <span className="text-lobster-400 ml-1">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={
+                    aiProvider === 'gemini' ? 'AIza...' :
+                    aiProvider === 'anthropic' ? 'sk-ant-...' : 'sk-...'
+                  }
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-lobster-500"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Your key is stored securely and used only for your bot. You pay the provider directly.
+                </p>
+              </div>
 
               <div className="flex gap-4">
                 <button
@@ -774,10 +797,9 @@ function OnboardContent() {
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-gray-400">AI Provider</dt>
-                    <dd>{aiProvider === 'openrouter' ? 'OpenRouter (Free)' :
-                         aiProvider === 'gemini' ? 'Google Gemini' :
-                         aiProvider === 'groq' ? 'Groq' :
-                         aiProvider.charAt(0).toUpperCase() + aiProvider.slice(1)}</dd>
+                    <dd>{aiProvider === 'gemini' ? 'Google Gemini' :
+                         aiProvider === 'anthropic' ? 'Anthropic Claude' :
+                         'OpenAI GPT'} (BYOK)</dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-gray-400">Plan</dt>
