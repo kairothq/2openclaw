@@ -5,8 +5,11 @@ const GCP_API_URL = process.env.GCP_API_URL || 'http://localhost:3000'
 const GCP_API_SECRET = process.env.GCP_API_SECRET || ''
 
 export async function POST(request: NextRequest) {
+  console.log('[subscriptions/create] Request received')
+
   try {
     const body = await request.json()
+    console.log('[subscriptions/create] Body:', JSON.stringify(body))
     const { userId, email, planId, name } = body
 
     if (!userId || !email || !planId) {
@@ -24,12 +27,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Razorpay customer (directly from Vercel)
+    console.log('[subscriptions/create] Creating customer...')
     const customer = await createCustomer(email, name)
-    console.log(`[subscriptions] Created customer: ${customer.id}`)
+    console.log(`[subscriptions/create] Customer created: ${customer.id}`)
 
     // Create subscription (directly from Vercel)
+    console.log(`[subscriptions/create] Creating subscription with plan: ${planId}`)
     const subscription = await createSubscription(customer.id, planId as PlanId, { userId })
-    console.log(`[subscriptions] Created subscription: ${subscription.id}`)
+    console.log(`[subscriptions/create] Subscription created: ${subscription.id}`)
 
     // Update user data on GCP with subscription info
     await fetch(`${GCP_API_URL}/subscriptions/update-status`, {
