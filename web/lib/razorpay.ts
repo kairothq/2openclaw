@@ -232,6 +232,7 @@ export function verifyWebhookSignature(body: string, signature: string): boolean
 
 /**
  * Verify payment signature (for checkout callback)
+ * For subscriptions: signature = HMAC-SHA256(razorpay_payment_id|razorpay_subscription_id, key_secret)
  */
 export function verifyPaymentSignature(
   subscriptionId: string,
@@ -241,13 +242,18 @@ export function verifyPaymentSignature(
   const keySecret = process.env.RAZORPAY_KEY_SECRET
 
   if (!keySecret) {
+    console.error('[razorpay] Key secret not found for signature verification')
     return false
   }
 
+  // Razorpay subscription signature format: payment_id|subscription_id
   const expectedSignature = crypto
     .createHmac('sha256', keySecret)
-    .update(`${subscriptionId}|${paymentId}`)
+    .update(`${paymentId}|${subscriptionId}`)
     .digest('hex')
+
+  console.log(`[razorpay] Verifying signature - paymentId: ${paymentId}, subscriptionId: ${subscriptionId}`)
+  console.log(`[razorpay] Expected: ${expectedSignature.substring(0, 20)}..., Got: ${signature.substring(0, 20)}...`)
 
   return expectedSignature === signature
 }
