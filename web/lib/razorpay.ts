@@ -89,12 +89,21 @@ export interface RazorpayCustomer {
  */
 export async function createCustomer(email: string, name?: string, contact?: string): Promise<RazorpayCustomer> {
   try {
-    const customer = await getRazorpay().customers.create({
+    // Build params without undefined values
+    const params: Record<string, any> = {
       email,
       name: name || email.split('@')[0],
-      contact: contact || undefined,
-      fail_existing: 0 // Return existing customer if email matches
-    }) as unknown as RazorpayCustomer
+      fail_existing: '0' // Return existing customer if email matches (string, not number)
+    }
+
+    // Only add contact if provided
+    if (contact) {
+      params.contact = contact
+    }
+
+    console.log('[razorpay] Creating customer with params:', JSON.stringify(params))
+
+    const customer = await (getRazorpay().customers.create as any)(params) as RazorpayCustomer
     return customer
   } catch (error: any) {
     console.error('[razorpay] Failed to create customer:', error?.error?.description || error?.message || JSON.stringify(error))
