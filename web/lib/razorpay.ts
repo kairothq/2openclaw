@@ -125,11 +125,15 @@ export interface RazorpaySubscription {
 
 /**
  * Create a subscription
+ * @param customerId - Razorpay customer ID
+ * @param planId - Plan identifier (starter, pro, business)
+ * @param options.userId - Internal user ID for tracking
+ * @param options.trialDays - Days before first charge (for free trial with auth)
  */
 export async function createSubscription(
   customerId: string,
   planId: PlanId,
-  options: { userId?: string } = {}
+  options: { userId?: string; trialDays?: number } = {}
 ): Promise<RazorpaySubscription> {
   const planRazorpayId = process.env[`RAZORPAY_PLAN_${planId.toUpperCase()}`]
 
@@ -138,8 +142,8 @@ export async function createSubscription(
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const subscription = await (getRazorpay().subscriptions.create as any)({
+    // Build subscription params
+    const params: Record<string, any> = {
       plan_id: planRazorpayId,
       customer_id: customerId,
       total_count: 120, // Max 10 years
@@ -147,9 +151,21 @@ export async function createSubscription(
       customer_notify: 1,
       notes: {
         userId: options.userId || '',
-        plan: planId
+        plan: planId,
+        isTrial: options.trialDays ? 'true' : 'false'
       }
-    }) as RazorpaySubscription
+    }
+
+    // For free trial: defer first charge by X days
+    // Razorpay start_at must be at least 15 minutes in the future
+    if (options.trialDays && options.trialDays > 0) {
+      const startAt = Math.floor(Date.now() / 1000) + (options.trialDays * 24 * 60 * 60)
+      params.start_at = startAt
+      console.log(`[razorpay] Creating trial subscription, first charge at: ${new Date(startAt * 1000).toISOString()}`)
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const subscription = await (getRazorpay().subscriptions.create as any)(params) as RazorpaySubscription
 
     return subscription
   } catch (error: any) {

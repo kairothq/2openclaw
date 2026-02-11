@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     console.log('[subscriptions/create] Body:', JSON.stringify(body))
-    const { userId, email, planId, name } = body
+    const { userId, email, planId, name, trial } = body
 
     if (!userId || !email || !planId) {
       return NextResponse.json(
@@ -19,7 +19,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!['starter', 'pro', 'business'].includes(planId)) {
+    // For free trial, use starter plan with deferred billing
+    const effectivePlanId = trial ? 'starter' : planId
+
+    if (!['starter', 'pro', 'business'].includes(effectivePlanId)) {
       return NextResponse.json(
         { error: 'Invalid plan' },
         { status: 400 }
@@ -32,11 +35,14 @@ export async function POST(request: NextRequest) {
     console.log(`[subscriptions/create] Customer created: ${customer.id}`)
 
     // Create subscription (directly from Vercel)
-    console.log(`[subscriptions/create] Creating subscription with plan: ${planId}`)
-    const subscription = await createSubscription(customer.id, planId as PlanId, { userId })
+    // If trial=true, defer first charge by 7 days
+    const trialDays = trial ? 7 : undefined
+    console.log(`[subscriptions/create] Creating subscription with plan: ${effectivePlanId}, trial: ${trial ? '7 days' : 'no'}`)
+    const subscription = await createSubscription(customer.id, effectivePlanId as PlanId, { userId, trialDays })
     console.log(`[subscriptions/create] Subscription created: ${subscription.id}`)
 
     // Update user data on GCP with subscription info
+    const subscriptionStatus = trial ? 'TRIAL' : 'PENDING'
     await fetch(`${GCP_API_URL}/subscriptions/update-status`, {
       method: 'POST',
       headers: {
@@ -48,8 +54,9 @@ export async function POST(request: NextRequest) {
         email,
         razorpayCustomerId: customer.id,
         razorpaySubscriptionId: subscription.id,
-        subscriptionStatus: 'PENDING',
-        plan: planId
+        subscriptionStatus,
+        plan: trial ? 'trial' : planId,
+        trialEndsAt: trial ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined
       })
     })
 
@@ -57,7 +64,9 @@ export async function POST(request: NextRequest) {
       success: true,
       subscriptionId: subscription.id,
       shortUrl: subscription.short_url,
-      status: subscription.status
+      status: subscription.status,
+      isTrial: !!trial,
+      trialEndsAt: trial ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined
     })
   } catch (error: any) {
     console.error('Subscription create error:', error)

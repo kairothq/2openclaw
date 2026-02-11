@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 
 type Step = 'email' | 'telegram' | 'token' | 'userid' | 'ai' | 'plan' | 'payment' | 'deploy' | 'done'
 
-const STEPS = ['email', 'telegram', 'token', 'userid', 'ai', 'plan', 'payment', 'deploy', 'done']
+const STEPS = ['email', 'telegram', 'token', 'userid', 'ai', 'plan', 'payment', 'done']
 
 const PLANS = [
   { id: 'free', name: 'Free Trial', price: '₹0', period: '7 days', features: ['1.5GB RAM', 'BYOK (Your API Key)', 'Test your bot'] },
@@ -81,13 +81,9 @@ function OnboardContent() {
   }
 
   const handlePlanContinue = async () => {
-    if (selectedPlan === 'free') {
-      // Free plan - go straight to deploy
-      setStep('deploy')
-    } else {
-      // Paid plan - go to payment
-      setStep('payment')
-    }
+    // All plans now go through payment for card/UPI auth
+    // Free trial = deferred billing (no charge for 7 days)
+    setStep('payment')
   }
 
   const initiatePayment = async () => {
@@ -120,14 +116,17 @@ function OnboardContent() {
       setUserId(provisionData.userId)
 
       // Create subscription
+      // For free trial: pass trial=true for deferred billing (7 days)
+      const isTrial = selectedPlan === 'free'
       const subRes = await fetch('/api/subscriptions/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: provisionData.userId,
           email,
-          planId: selectedPlan,
-          name: email.split('@')[0]
+          planId: isTrial ? 'starter' : selectedPlan, // Free trial uses starter plan
+          name: email.split('@')[0],
+          trial: isTrial
         })
       })
 
@@ -238,7 +237,8 @@ function OnboardContent() {
   }
 
   const currentStepIndex = STEPS.indexOf(step)
-  const isPaidPlan = selectedPlan !== 'free'
+  // All plans now go through payment (free trial uses deferred billing)
+  const isPaidPlan = true
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -699,25 +699,37 @@ function OnboardContent() {
                   onClick={handlePlanContinue}
                   className="flex-1 bg-lobster-500 py-3 rounded-lg font-semibold hover:bg-lobster-400 transition-colors"
                 >
-                  {selectedPlan === 'free' ? 'Start Free Trial →' : 'Continue to Payment →'}
+                  {selectedPlan === 'free' ? 'Continue to Verify Payment →' : 'Continue to Payment →'}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Step 7: Payment (for paid plans) */}
+        {/* Step 7: Payment (for all plans - free trial uses deferred billing) */}
         {step === 'payment' && (
           <div>
-            <h2 className="text-2xl font-bold mb-6">Step 7: Complete Payment</h2>
+            <h2 className="text-2xl font-bold mb-6">
+              {selectedPlan === 'free' ? 'Step 7: Verify Payment Method' : 'Step 7: Complete Payment'}
+            </h2>
 
             <div className="space-y-6">
+              {/* Free trial info banner */}
+              {selectedPlan === 'free' && (
+                <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 text-sm text-green-300">
+                  <p className="font-semibold mb-1">7-Day Free Trial</p>
+                  <p>We'll verify your payment method but won't charge you today. After 7 days, you'll be charged ₹199/month (Starter plan). Cancel anytime.</p>
+                </div>
+              )}
+
               <div className="bg-gray-800 rounded-xl p-6">
                 <h3 className="font-semibold mb-4">Order Summary</h3>
                 <dl className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <dt className="text-gray-400">Plan</dt>
-                    <dd className="font-semibold">{PLANS.find(p => p.id === selectedPlan)?.name}</dd>
+                    <dd className="font-semibold">
+                      {selectedPlan === 'free' ? '7-Day Free Trial → Starter' : PLANS.find(p => p.id === selectedPlan)?.name}
+                    </dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-gray-400">Telegram Bot</dt>
@@ -728,12 +740,25 @@ function OnboardContent() {
                     <dd>{email}</dd>
                   </div>
                   <div className="border-t border-gray-700 pt-3 mt-3">
-                    <div className="flex justify-between text-lg">
-                      <dt className="font-semibold">Total</dt>
-                      <dd className="font-bold text-lobster-400">
-                        {PLANS.find(p => p.id === selectedPlan)?.price}/month
-                      </dd>
-                    </div>
+                    {selectedPlan === 'free' ? (
+                      <>
+                        <div className="flex justify-between text-lg">
+                          <dt className="font-semibold">Today</dt>
+                          <dd className="font-bold text-green-400">₹0</dd>
+                        </div>
+                        <div className="flex justify-between text-sm text-gray-400 mt-1">
+                          <dt>After 7 days</dt>
+                          <dd>₹199/month</dd>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-between text-lg">
+                        <dt className="font-semibold">Total</dt>
+                        <dd className="font-bold text-lobster-400">
+                          {PLANS.find(p => p.id === selectedPlan)?.price}/month
+                        </dd>
+                      </div>
+                    )}
                   </div>
                 </dl>
               </div>
@@ -769,6 +794,8 @@ function OnboardContent() {
                       </svg>
                       Processing...
                     </span>
+                  ) : selectedPlan === 'free' ? (
+                    'Start Free Trial →'
                   ) : (
                     'Pay with Razorpay →'
                   )}
