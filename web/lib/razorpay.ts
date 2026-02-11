@@ -11,12 +11,17 @@ let razorpayInstance: Razorpay | null = null
 
 function getRazorpay(): Razorpay {
   if (!razorpayInstance) {
-    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    const keyId = process.env.RAZORPAY_KEY_ID
+    const keySecret = process.env.RAZORPAY_KEY_SECRET
+
+    console.log(`[razorpay] Initializing with key: ${keyId?.substring(0, 15)}...`)
+
+    if (!keyId || !keySecret) {
       throw new Error('Razorpay credentials not configured')
     }
     razorpayInstance = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET
+      key_id: keyId,
+      key_secret: keySecret
     })
   }
   return razorpayInstance
@@ -92,7 +97,7 @@ export async function createCustomer(email: string, name?: string, contact?: str
     }) as unknown as RazorpayCustomer
     return customer
   } catch (error: any) {
-    console.error('[razorpay] Failed to create customer:', error.message)
+    console.error('[razorpay] Failed to create customer:', error?.error?.description || error?.message || JSON.stringify(error))
     throw error
   }
 }
