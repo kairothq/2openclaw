@@ -1,0 +1,268 @@
+{
+  "project": "2OpenClaw Dashboard Redesign",
+  "branchName": "feature/dashboard-redesign",
+  "description": "Redesign dashboard following StartClaw style - integrates with existing payment/instance management",
+  "stories": [
+    {
+      "id": "dashboard-layout-1",
+      "title": "Create dashboard layout with sidebar navigation",
+      "priority": 1,
+      "passes": false,
+      "description": "As a logged-in user, I want a clean dashboard layout with sidebar navigation so I can access different sections",
+      "acceptanceCriteria": [
+        "Create app/dashboard/layout.tsx",
+        "Left sidebar with dark background",
+        "Navigation sections: MAIN (Dashboard, Add Employee), MARKETPLACE (Marketplace, My Purchases, My Listings), ACCOUNT (Billing, Settings)",
+        "Active nav item highlighted with orange accent",
+        "Credits display at bottom: '$0.00' + 'Add credits >' link",
+        "User profile at bottom: avatar with initials, name, email, logout icon",
+        "Top bar: search input, notification bell icon, 'Add Employee' button (orange)",
+        "Protected route: redirect to / if not authenticated (check session)",
+        "Sidebar collapses to icons on mobile",
+        "Verify layout displays correctly in browser using dev-browser skill"
+      ],
+      "notes": "Integrate with existing auth system - use localStorage 'startclaw_instance' for session check"
+    },
+    {
+      "id": "dashboard-overview-1",
+      "title": "Build dashboard overview page with metrics",
+      "priority": 2,
+      "passes": false,
+      "description": "As a user, I want to see my instance metrics at a glance so I know what's happening",
+      "acceptanceCriteria": [
+        "Create app/dashboard/page.tsx",
+        "Welcome message: 'Good evening, [User Name]'",
+        "Subtext: 'Here's what's happening with your AI employees'",
+        "6 metric cards in grid: Messages (0), Tasks Done (0), Tools Used (0), API Cost ($0.00), Storage (0.0/50 GB with %), Status (Online with green dot)",
+        "Each card: icon, label, value, dark background with border",
+        "AI Model section: dropdown showing 'Claude Sonnet 4.5 - Fast & highly capable' + Save button (orange)",
+        "Live Activity section: 'Live Activity' heading, 'Working' status (green dot), '0 events' count",
+        "Empty state: 'No activity yet' with lightning icon + 'Activity appears here when your AI employee works'",
+        "If no instances: show centered card with agent deployment CTA",
+        "Fetch real data from existing /api/instance/[userId] endpoint",
+        "Verify metrics display correctly in browser using dev-browser skill"
+      ],
+      "notes": "Integrate with EXISTING backend - use /api/instance/[userId] for real data. Design for future 'skills' addition - keep it modular."
+    },
+    {
+      "id": "dashboard-add-employee-identity-1",
+      "title": "Build Add Employee flow - Step 1 (Identity)",
+      "priority": 2,
+      "passes": false,
+      "description": "As a user, I want to create a new AI assistant by choosing a personality so I can customize it",
+      "acceptanceCriteria": [
+        "Create app/dashboard/add-employee/page.tsx",
+        "Progress indicator showing 4 steps: Identity, Create, Connect, Plan",
+        "Step 1 active: 'Create your AI assistant'",
+        "Subtext: 'Choose a preset or customize your own.'",
+        "5 personality cards: Atlas, Nova, Max, Sage, Custom (with avatar images)",
+        "Each card: avatar image, name, selectable with border highlight",
+        "Name input field with label 'Name'",
+        "Personality textarea with label 'Personality (optional)' and placeholder",
+        "Cancel button (returns to dashboard) and Continue button (orange)",
+        "Selected personality stored in component state",
+        "Continue validates name is not empty",
+        "Responsive on mobile",
+        "Verify step 1 works in browser using dev-browser skill"
+      ],
+      "notes": "This is new flow - not replacing existing /onboard. Design modularly - personality selection can be extended with 'skills' later."
+    },
+    {
+      "id": "dashboard-add-employee-connect-1",
+      "title": "Build Add Employee flow - Step 3 (Connect services)",
+      "priority": 2,
+      "passes": false,
+      "description": "As a user, I want to connect my AI to Telegram or WhatsApp and optionally add my own API key",
+      "acceptanceCriteria": [
+        "Create Step 3 UI: 'Connect your services'",
+        "Subtext: 'Choose how to chat with [Agent Name].'",
+        "Chat channel section: toggle buttons for Telegram (grayed/disabled) and WhatsApp (selectable)",
+        "Use shader button effect from glimmering-map template for platform toggle",
+        "AI provider section with label 'Uses your credits by default' + 'Optional' badge",
+        "Toggle buttons: Claude (Anthropic) and GPT (OpenAI)",
+        "API key input field: placeholder 'sk-ant-... (optional - credits used if empty)'",
+        "Show/hide eye icon + external link icon on API key field",
+        "Helper text: 'Credits will be used for AI calls'",
+        "WhatsApp connection card: green checkmark icon, heading, QR code explanation",
+        "Back and Continue buttons",
+        "Responsive on mobile",
+        "Verify platform toggle works in browser using dev-browser skill"
+      ],
+      "notes": "Integrate with EXISTING /api/validate-telegram endpoint. API key is optional - defaults to using platform credits."
+    },
+    {
+      "id": "dashboard-add-employee-plan-1",
+      "title": "Build Add Employee flow - Step 4 (Select plan)",
+      "priority": 2,
+      "passes": false,
+      "description": "As a user, I want to select a resource plan for my AI assistant",
+      "acceptanceCriteria": [
+        "Create Step 4 UI: 'Select a plan'",
+        "Subtext: 'VM resources for [Agent Name]'",
+        "3 pricing cards: Starter ($49), Professional ($99 with Popular badge), Enterprise ($200)",
+        "Each card: plan name, price, specs (vCPU, RAM, SSD), features list with checkmarks, monthly credits",
+        "Checkmark icon on selected plan (Starter default)",
+        "Cards use dark theme with borders",
+        "Popular badge on Professional plan",
+        "Back button and Continue button (orange)",
+        "Continue triggers deployment flow (integrate with EXISTING /api/subscriptions/create)",
+        "Responsive on mobile (stack vertically)",
+        "Verify plan selection works in browser using dev-browser skill"
+      ],
+      "notes": "This connects to EXISTING Razorpay payment flow - don't recreate payment logic, just UI"
+    },
+    {
+      "id": "dashboard-marketplace-1",
+      "title": "Build marketplace page with agent templates",
+      "priority": 3,
+      "passes": false,
+      "description": "As a user, I want to browse pre-built AI agent templates so I can quickly deploy specialized agents",
+      "acceptanceCriteria": [
+        "Create app/dashboard/marketplace/page.tsx",
+        "Heading: 'Agent Templates'",
+        "Subtext: 'Pre-built agent configurations ready to deploy. Browse, purchase, and launch in one click.'",
+        "Search bar with placeholder 'Search templates...'",
+        "Category filter pills: All, Productivity, Social Media, Support, Development, Marketing, Sales, Trending, + Publish button",
+        "Template cards grid (3 columns on desktop)",
+        "Example cards: Social Media Manager, Clawra AI Girlfriend, Executive Assistant, etc.",
+        "Each card: avatar/icon, name, category, rating (stars), Free badge, description",
+        "Cards clickable to show detail modal or page",
+        "Responsive on mobile (1 column)",
+        "Empty state if no templates",
+        "Verify marketplace displays in browser using dev-browser skill"
+      ],
+      "notes": "Template data can be hardcoded initially - future: fetch from API. Design for future 'skills' marketplace."
+    },
+    {
+      "id": "dashboard-settings-1",
+      "title": "Build settings page with API key management",
+      "priority": 3,
+      "passes": false,
+      "description": "As a user, I want to manage my optional API keys and profile settings",
+      "acceptanceCriteria": [
+        "Create app/dashboard/settings/page.tsx",
+        "Section: API Keys",
+        "Heading: 'AI Provider API Keys (Optional)'",
+        "Explanation: 'Add your own Gemini/OpenAI/Claude key. If added, you pay AI providers directly at cost. Platform credits won't be used for AI calls.'",
+        "API key input with show/hide toggle",
+        "Save button (orange)",
+        "Section: Billing",
+        "Link to billing portal or current plan display",
+        "Section: Profile",
+        "Name and email fields (read from auth session)",
+        "Logout button",
+        "Save changes button",
+        "Verify settings page works in browser using dev-browser skill"
+      ],
+      "notes": "Integrate with existing localStorage for session data. API keys stored securely (not in localStorage)."
+    },
+    {
+      "id": "dashboard-instance-card-1",
+      "title": "Build agent instance card component",
+      "priority": 2,
+      "passes": false,
+      "description": "As a user with deployed agents, I want to see my active agent instances on the dashboard",
+      "acceptanceCriteria": [
+        "Create components/dashboard/AgentInstanceCard.tsx",
+        "Shows when user has deployed instances (fetch from existing /api/instance/[userId])",
+        "Card displays: agent avatar with initial, name (e.g., 'Nova'), status badge (Active/Paused)",
+        "Action buttons: Pause, Cancel, Delete (icons)",
+        "Clicking agent name navigates to detail view",
+        "Status indicator: green dot for Active, gray for Paused",
+        "Hover effects on action buttons",
+        "Integrate with EXISTING /api/instance/[userId]/start, /stop, /restart endpoints",
+        "Verify instance card displays in browser using dev-browser skill"
+      ],
+      "notes": "This replaces the 'no agents' empty state. Use EXISTING instance management API."
+    },
+    {
+      "id": "dashboard-responsive-1",
+      "title": "Make dashboard fully responsive",
+      "priority": 4,
+      "passes": false,
+      "description": "As a mobile user, I want the dashboard to work perfectly on my device",
+      "acceptanceCriteria": [
+        "Test dashboard at 375px, 768px, 1920px widths",
+        "Sidebar collapses to icon-only on mobile (<768px)",
+        "Top bar stacks appropriately on mobile",
+        "Metrics cards stack vertically on mobile",
+        "Add Employee flow works on mobile (all 4 steps)",
+        "Marketplace grid adjusts to 1 column on mobile",
+        "Settings page stacks sections on mobile",
+        "No horizontal scroll at any width",
+        "All text readable on small screens",
+        "Verify responsive dashboard in browser using dev-browser skill"
+      ],
+      "notes": "Mobile-first design - prioritize mobile experience"
+    },
+    {
+      "id": "dashboard-integration-1",
+      "title": "Integrate dashboard with existing backend APIs",
+      "priority": 1,
+      "passes": false,
+      "description": "As a developer, I want the dashboard to use existing 2openclaw APIs so data is real and functional",
+      "acceptanceCriteria": [
+        "Dashboard overview fetches from /api/instance/[userId]",
+        "AI model dropdown updates via existing instance API",
+        "Live activity fetches real events (or shows 0 if not implemented)",
+        "Add Employee flow connects to /api/validate-telegram for bot token",
+        "Plan selection uses /api/subscriptions/create (existing Razorpay flow)",
+        "Instance actions (start/stop/restart) use existing /api/instance/[userId]/* endpoints",
+        "Settings uses existing session/auth system",
+        "No duplicate API endpoints created",
+        "localStorage 'startclaw_instance' used for session persistence",
+        "Error handling matches existing patterns",
+        "Verify API integration works in browser using dev-browser skill"
+      ],
+      "notes": "DO NOT recreate existing backend logic - reuse all existing APIs from 2openclaw"
+    },
+    {
+      "id": "dashboard-polish-1",
+      "title": "Dashboard styling consistency and polish",
+      "priority": 4,
+      "passes": false,
+      "description": "As a user, I want a visually consistent and polished dashboard experience",
+      "acceptanceCriteria": [
+        "All cards use consistent dark theme (zinc-900 backgrounds)",
+        "All borders use consistent color (zinc-800)",
+        "All text uses correct hierarchy (white, zinc-400, zinc-500)",
+        "Orange accent color (#f97316) used consistently for CTAs and active states",
+        "Consistent border-radius across all elements (8px, 12px, or 16px)",
+        "Consistent padding and spacing",
+        "Hover states on all interactive elements",
+        "Loading states for async operations",
+        "Error states for failed operations",
+        "Empty states for no data",
+        "Smooth transitions (200-300ms)",
+        "Verify visual consistency in browser using dev-browser skill",
+        "Typecheck passes"
+      ],
+      "notes": "shadcn/ui dark theme consistency throughout"
+    },
+    {
+      "id": "dashboard-testing-1",
+      "title": "Dashboard testing and bug fixes",
+      "priority": 4,
+      "passes": false,
+      "description": "As a developer, I want to ensure the dashboard works perfectly with existing systems",
+      "acceptanceCriteria": [
+        "Test full Add Employee flow (all 4 steps to deployment)",
+        "Test dashboard displays real instance data",
+        "Test instance actions (start, stop, restart)",
+        "Test navigation between all dashboard pages",
+        "Test sidebar collapse on mobile",
+        "Test marketplace browsing",
+        "Test settings page save",
+        "Test logout functionality",
+        "Test with existing deployed instance",
+        "Test with no instances (empty state)",
+        "Fix any bugs found",
+        "npm run build succeeds",
+        "No TypeScript errors",
+        "No console errors",
+        "Verify complete dashboard in browser using dev-browser skill"
+      ],
+      "notes": "Final verification - everything should work with existing 2openclaw backend"
+    }
+  ]
+}

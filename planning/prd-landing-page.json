@@ -1,0 +1,397 @@
+{
+  "project": "2OpenClaw Landing Page Redesign",
+  "branchName": "feature/landing-page-redesign",
+  "description": "Redesign landing page following SimpleClaw style with shadcn/ui dark theme",
+  "stories": [
+    {
+      "id": "landing-setup-1",
+      "title": "Install dependencies and setup shadcn/ui for landing page",
+      "priority": 1,
+      "passes": false,
+      "description": "As a developer, I want to install necessary UI libraries and configure shadcn/ui dark theme so the landing page has a professional foundation",
+      "acceptanceCriteria": [
+        "Install framer-motion for animations",
+        "Install @radix-ui/react-dialog for video modals",
+        "Install lucide-react for minimalist icons",
+        "Setup shadcn/ui with dark theme (zinc palette)",
+        "Update tailwind.config.js with lobster orange (#f97316) brand colors",
+        "Create components/ui directory structure",
+        "Verify npm run build completes without errors",
+        "Typecheck passes"
+      ],
+      "notes": "Keep existing Razorpay dependencies intact - don't modify payment flow"
+    },
+    {
+      "id": "landing-nav-1",
+      "title": "Add navigation header with Google OAuth",
+      "priority": 1,
+      "passes": false,
+      "description": "As a user, I want to see a clean navigation header with sign-in option so I can navigate the site and authenticate",
+      "acceptanceCriteria": [
+        "Create components/navigation/Header.tsx",
+        "Logo on left (2OpenClaw branding)",
+        "Center links: Features, Pricing, FAQ (smooth scroll to sections)",
+        "Right side shows 'Sign in with Google' button if not authenticated",
+        "Right side shows 'Dashboard' button if authenticated (links to /dashboard)",
+        "Fixed position with dark background and subtle border",
+        "Install and configure next-auth for Google OAuth",
+        "Create /api/auth/[...nextauth]/route.ts",
+        "Verify Google sign-in redirects to /dashboard after login",
+        "Verify in browser using dev-browser skill"
+      ],
+      "notes": "Use existing localStorage pattern from 2openclaw for session management"
+    },
+    {
+      "id": "landing-hero-1",
+      "title": "Build hero section with shimmer button",
+      "priority": 2,
+      "passes": false,
+      "description": "As a visitor, I want to see an impressive hero section that clearly states the value proposition",
+      "acceptanceCriteria": [
+        "Create components/landing/HeroSection.tsx",
+        "Headline: 'Deploy an OpenClaw in 60 seconds.'",
+        "Subtext: 'Your own AI assistant on a secure cloud server, preconfigured and ready to chat via Telegram or WhatsApp.'",
+        "Primary CTA button 'Deploy your agent' with shimmer/flash animation effect",
+        "Secondary link 'Watch the demo' that opens video modal",
+        "Social proof footer with 3 items: Lock icon 'You control your keys', '80+ active users', '@yourfounder'",
+        "Button clicks trigger Google OAuth (not direct to onboard)",
+        "Responsive on mobile (stack vertically)",
+        "Verify in browser using dev-browser skill"
+      ],
+      "notes": "Use liquid metal border effect from premium template if available, otherwise gradient shimmer"
+    },
+    {
+      "id": "landing-video-1",
+      "title": "Create video modal component for tutorials",
+      "priority": 2,
+      "passes": false,
+      "description": "As a user, I want to watch tutorial videos in a modal so I can learn how the platform works",
+      "acceptanceCriteria": [
+        "Create components/ui/VideoModal.tsx using @radix-ui/react-dialog",
+        "Accept props: isOpen, onClose, videoId (YouTube), title",
+        "16:9 aspect ratio responsive container",
+        "YouTube iframe embed with autoplay parameter",
+        "Close on ESC key press",
+        "Close on clicking backdrop",
+        "Close button in header",
+        "Pause video when modal closes",
+        "Dark theme styling matching site",
+        "Verify modal opens, plays video, and closes in browser using dev-browser skill"
+      ],
+      "notes": "Use placeholder YouTube IDs initially - can be replaced later with actual tutorial videos"
+    },
+    {
+      "id": "landing-platforms-1",
+      "title": "Add platform selection section (Telegram/WhatsApp)",
+      "priority": 2,
+      "passes": false,
+      "description": "As a user, I want to select my preferred platform so I know which channels are supported",
+      "acceptanceCriteria": [
+        "Create components/landing/PlatformSelection.tsx",
+        "Section heading: 'Choose your platform'",
+        "Two platform cards side-by-side",
+        "Telegram card: active, clickable, opens video modal with Telegram setup tutorial",
+        "WhatsApp card: shows 'Coming Soon' badge, grayed out, not clickable",
+        "Use minimalist platform icons (Telegram logo, WhatsApp logo)",
+        "Hover effect on Telegram card",
+        "Video modal shows placeholder Telegram tutorial",
+        "Responsive on mobile (stack vertically)",
+        "Verify cards display and Telegram modal opens in browser using dev-browser skill"
+      ],
+      "notes": "Leave room for future platform additions (Discord, Slack) - design system should be extensible"
+    },
+    {
+      "id": "landing-comparison-1",
+      "title": "Build comparison section (60 min vs <1 min)",
+      "priority": 3,
+      "passes": false,
+      "description": "As a visitor, I want to see a clear comparison of traditional setup vs 2OpenClaw so I understand the time savings",
+      "acceptanceCriteria": [
+        "Create components/landing/ComparisonSection.tsx",
+        "Section heading: 'Traditional Method vs 2OpenClaw' or 'Comparison' with underline",
+        "Two-column layout: Traditional (left) vs 2OpenClaw (right)",
+        "Traditional column: 8 steps with time estimates (total 60 min)",
+        "2OpenClaw column: '<1 min' large text with explanation",
+        "Footer note: 'If you're non-technical, multiply these times by 10'",
+        "Fade-in animation using framer-motion whileInView",
+        "Slide from left (Traditional) and right (2OpenClaw) simultaneously",
+        "Responsive on mobile (stack vertically)",
+        "Verify animations trigger on scroll in browser using dev-browser skill"
+      ],
+      "notes": "Use exact copy from content document for steps"
+    },
+    {
+      "id": "landing-usecases-1",
+      "title": "Add use cases section with feature pills",
+      "priority": 3,
+      "passes": false,
+      "description": "As a visitor, I want to see what OpenClaw can do organized by category so I understand its capabilities",
+      "acceptanceCriteria": [
+        "Create components/landing/UseCasesSection.tsx",
+        "Section heading: 'What can OpenClaw do for you?'",
+        "Subheading: 'One assistant, thousands of use cases'",
+        "Top row: 3 feature pills (Lightning fast, Secure by default, Always awake) with icons",
+        "Three use case categories: Work & Productivity, Personal & Creative, Development & Automation",
+        "Display use cases as dark rounded pill tags (SimpleClaw style)",
+        "Pills organized in columns by category",
+        "Footer: 'PS. You can add as many use cases as you want via natural language'",
+        "Subtle animation on pills (fade-in stagger)",
+        "Responsive on mobile (stack categories vertically)",
+        "Verify pills display and animate in browser using dev-browser skill"
+      ],
+      "notes": "Use exact use case list from content document"
+    },
+    {
+      "id": "landing-globe-1",
+      "title": "Add 3D globe showing user locations",
+      "priority": 4,
+      "passes": false,
+      "description": "As a visitor, I want to see a visual representation of global users so I understand the platform's reach",
+      "acceptanceCriteria": [
+        "Create components/ui/Globe3D.tsx (use template provided or react-three-fiber)",
+        "Animated rotating globe",
+        "Pulsing dots on globe for user locations (sample locations)",
+        "Stats overlay: '80+ active users' and '12 countries'",
+        "Smooth 60fps animation",
+        "Dark background with subtle glow",
+        "Responsive sizing on mobile",
+        "Verify globe renders and rotates smoothly in browser using dev-browser skill"
+      ],
+      "notes": "If globe template isn't available, use CSS-based alternative with dots/map. Performance is critical - must be 60fps."
+    },
+    {
+      "id": "landing-testimonials-1",
+      "title": "Build testimonials section with circular avatars",
+      "priority": 3,
+      "passes": false,
+      "description": "As a visitor, I want to see what other users say about the platform so I can trust it",
+      "acceptanceCriteria": [
+        "Create components/landing/TestimonialsSection.tsx",
+        "Create components/cards/TestimonialCard.tsx",
+        "Section heading: 'What developers are saying'",
+        "3 testimonial cards in grid layout",
+        "Each card: circular avatar with initials (AS, PM, RV), name, title, location, 5 stars, quote",
+        "Use exact testimonial data from content document (Arjun Sharma, Priya Mehta, Rahul Verma)",
+        "Flat circular avatars with orange background (#f97316)",
+        "5-star rating display using minimalist star icons",
+        "Fade-in animation with stagger effect",
+        "Hover effect on cards (subtle lift)",
+        "Responsive on mobile (stack vertically)",
+        "Verify testimonials display correctly in browser using dev-browser skill"
+      ],
+      "notes": "No emoji avatars - use initials in circles with consistent styling"
+    },
+    {
+      "id": "landing-testimonials-globe-1",
+      "title": "Combine testimonials and globe side-by-side",
+      "priority": 4,
+      "passes": false,
+      "description": "As a visitor, I want to see social proof and global reach together so I understand the platform's credibility",
+      "acceptanceCriteria": [
+        "Create section layout with globe on one side, testimonials on other",
+        "Two-column layout on desktop",
+        "Equal width distribution or 40/60 split",
+        "Proper spacing between columns",
+        "Both components visible and properly aligned",
+        "Responsive on mobile (stack vertically, globe first)",
+        "Verify layout in browser using dev-browser skill"
+      ],
+      "notes": "Decide globe left vs right based on visual balance"
+    },
+    {
+      "id": "landing-pricing-1",
+      "title": "Add pricing section with AI credits",
+      "priority": 3,
+      "passes": false,
+      "description": "As a visitor, I want to see clear pricing options with included AI credits so I can choose a plan",
+      "acceptanceCriteria": [
+        "Create components/landing/PricingSection.tsx",
+        "Section heading: 'Simple, transparent pricing'",
+        "Subheading: 'No hidden fees. Every plan includes deployment and monthly AI credits.'",
+        "3 pricing cards: Starter ($49), Pro ($99), Business ($200)",
+        "Each card shows: server specs (vCPU, RAM, SSD), price, AI credits badge, features list",
+        "'Popular' badge on Pro plan",
+        "Credits shown as green badge: '$15 in AI credits included', etc.",
+        "Feature lists with checkmarks",
+        "'Get started' buttons on all cards",
+        "Footer note: 'Unused credits roll over to the next month'",
+        "Responsive on mobile (stack vertically)",
+        "Verify pricing cards display correctly in browser using dev-browser skill"
+      ],
+      "notes": "Don't mention 'no credit card' - removed per user request. Pricing links to /onboard (existing flow)."
+    },
+    {
+      "id": "landing-cta-1",
+      "title": "Build final CTA section",
+      "priority": 3,
+      "passes": false,
+      "description": "As a visitor, I want a final call-to-action so I'm encouraged to sign up",
+      "acceptanceCriteria": [
+        "Create components/landing/FinalCTA.tsx",
+        "Main heading: 'Get yourself a founder's office'",
+        "Subheading: 'Everything you need. Nothing you don't.'",
+        "Primary button with shimmer effect: 'Deploy your agent'",
+        "Button triggers Google OAuth sign-in",
+        "Link below button: 'Deploy in under 60 seconds.'",
+        "Gradient background (lobster orange tones)",
+        "Centered layout",
+        "Responsive on mobile",
+        "Verify CTA displays and button works in browser using dev-browser skill"
+      ],
+      "notes": "Removed 'no credit card required' per user request"
+    },
+    {
+      "id": "landing-footer-1",
+      "title": "Add footer with navigation and social links",
+      "priority": 2,
+      "passes": false,
+      "description": "As a visitor, I want to see footer links and social icons so I can navigate to other pages",
+      "acceptanceCriteria": [
+        "Create components/navigation/Footer.tsx",
+        "Left: 2OpenClaw logo with lobster icon",
+        "Center: Navigation links (Features, Pricing, FAQ, Marketplace)",
+        "Right: Social icons (Discord, Twitter/X)",
+        "Bottom row: 'Built with care • Powered by OpenClaw'",
+        "Legal links: Terms, Privacy, Contact",
+        "Dark background with top border",
+        "Links use smooth scroll for on-page sections",
+        "External links open in new tab",
+        "Responsive on mobile (stack sections)",
+        "Verify footer displays and links work in browser using dev-browser skill"
+      ],
+      "notes": "Marketplace link can go to /dashboard/marketplace or placeholder page"
+    },
+    {
+      "id": "landing-assembly-1",
+      "title": "Assemble complete landing page",
+      "priority": 4,
+      "passes": false,
+      "description": "As a visitor, I want to see a complete cohesive landing page so I can understand and sign up for the platform",
+      "acceptanceCriteria": [
+        "Update app/page.tsx to import all landing components",
+        "Add 'use client' directive at top",
+        "Render components in order: Header, Hero, Platform Selection, Comparison, Use Cases, Testimonials+Globe, Pricing, Final CTA, Footer",
+        "Proper spacing between sections (py-20 or py-24)",
+        "Smooth scroll behavior for navigation links",
+        "Video modal state managed at page level",
+        "All sections display without layout shifts",
+        "Page loads in <2 seconds",
+        "No console errors",
+        "Verify complete landing page in browser using dev-browser skill"
+      ],
+      "notes": "Don't modify existing /onboard or /dashboard routes - only replace landing page"
+    },
+    {
+      "id": "landing-animations-1",
+      "title": "Add scroll-triggered animations",
+      "priority": 4,
+      "passes": false,
+      "description": "As a visitor, I want smooth animations as I scroll so the page feels modern and polished",
+      "acceptanceCriteria": [
+        "Add framer-motion whileInView to all sections",
+        "Hero: fade-in on page load",
+        "Platform cards: fade-in with slight delay",
+        "Comparison: slide from left and right simultaneously",
+        "Use case pills: stagger animation (0.05s between items)",
+        "Testimonials: fade-in with stagger",
+        "Pricing cards: scale-up animation",
+        "All animations use once: true (trigger only once)",
+        "Smooth 60fps performance",
+        "No animation jank on mobile",
+        "Verify animations trigger correctly on scroll in browser using dev-browser skill"
+      ],
+      "notes": "Keep animations subtle and professional - not flashy"
+    },
+    {
+      "id": "landing-responsive-1",
+      "title": "Make landing page fully responsive",
+      "priority": 4,
+      "passes": false,
+      "description": "As a mobile user, I want the landing page to work perfectly on my device",
+      "acceptanceCriteria": [
+        "Test all sections at 375px width (mobile)",
+        "Test at 768px width (tablet)",
+        "Test at 1920px width (desktop)",
+        "Hero stacks vertically on mobile",
+        "Platform cards stack on mobile",
+        "Comparison columns stack on mobile",
+        "Use case categories stack on mobile",
+        "Testimonials+Globe stack on mobile (globe first)",
+        "Pricing cards stack on mobile",
+        "Navigation becomes responsive (hamburger if needed)",
+        "Footer stacks appropriately",
+        "All text readable at all sizes",
+        "No horizontal scroll on any device",
+        "Verify responsive layout in browser using dev-browser skill"
+      ],
+      "notes": "Mobile-first approach - design for small screens first"
+    },
+    {
+      "id": "landing-icons-1",
+      "title": "Replace all emojis with minimalist icons",
+      "priority": 3,
+      "passes": false,
+      "description": "As a visitor, I want consistent icon design so the page looks professional",
+      "acceptanceCriteria": [
+        "Install lucide-react if not already installed",
+        "Replace all emoji references with lucide icons",
+        "Lock icon for 'You control your keys'",
+        "Zap/Lightning for 'Lightning fast'",
+        "Shield for 'Secure by default'",
+        "Clock for 'Always awake'",
+        "Check/CheckCircle for feature lists",
+        "Star for ratings",
+        "All icons consistent size (16px, 20px, or 24px)",
+        "All icons same stroke width",
+        "No emojis anywhere on landing page",
+        "Verify icons display correctly in browser using dev-browser skill"
+      ],
+      "notes": "No emojis per user requirement - only minimalist line icons"
+    },
+    {
+      "id": "landing-polish-1",
+      "title": "Final polish and consistency",
+      "priority": 4,
+      "passes": false,
+      "description": "As a developer, I want consistent styling across all landing page sections",
+      "acceptanceCriteria": [
+        "All text uses correct colors (white, zinc-400, zinc-500)",
+        "All cards have consistent border-radius (16px or 24px)",
+        "All cards have consistent padding (p-6 or p-8)",
+        "All buttons have consistent hover states",
+        "Section spacing is consistent (py-20 or py-24)",
+        "All headings use consistent font sizes",
+        "All links have proper hover effects",
+        "Dark theme applied throughout",
+        "Orange brand color (#f97316) used consistently for CTAs and accents",
+        "Verify visual consistency in browser using dev-browser skill",
+        "Typecheck passes"
+      ],
+      "notes": "shadcn/ui dark theme with zinc palette + lobster orange accents"
+    },
+    {
+      "id": "landing-testing-1",
+      "title": "Landing page testing and bug fixes",
+      "priority": 4,
+      "passes": false,
+      "description": "As a developer, I want to ensure the landing page works perfectly",
+      "acceptanceCriteria": [
+        "Test Google OAuth login flow end-to-end",
+        "Test video modals open and close correctly",
+        "Test all navigation links scroll smoothly",
+        "Test Telegram platform card opens video",
+        "Test WhatsApp card shows 'Coming Soon' and is disabled",
+        "Test all CTA buttons trigger Google OAuth",
+        "Test responsive layout on 3 device sizes",
+        "Test all animations trigger on scroll",
+        "Fix any bugs found",
+        "npm run build succeeds",
+        "No TypeScript errors",
+        "No console errors or warnings",
+        "Lighthouse score >90 for performance",
+        "Verify complete landing page works in browser using dev-browser skill"
+      ],
+      "notes": "This is the final verification story - all features should work"
+    }
+  ]
+}
