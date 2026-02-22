@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrewClaw Font Pairing Preview</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Geist Font -->
+    <style>
+        @font-face {
+            font-family: 'Geist';
+            src: url('https://cdn.jsdelivr.net/npm/geist@1.2.2/dist/fonts/geist-sans/Geist-Regular.woff2') format('woff2');
+            font-weight: 400;
+        }
+        @font-face {
+            font-family: 'Geist';
+            src: url('https://cdn.jsdelivr.net/npm/geist@1.2.2/dist/fonts/geist-sans/Geist-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+        }
+        @font-face {
+            font-family: 'Geist';
+            src: url('https://cdn.jsdelivr.net/npm/geist@1.2.2/dist/fonts/geist-sans/Geist-Bold.woff2') format('woff2');
+            font-weight: 700;
+        }
+        @font-face {
+            font-family: 'Geist Mono';
+            src: url('https://cdn.jsdelivr.net/npm/geist@1.2.2/dist/fonts/geist-mono/GeistMono-Regular.woff2') format('woff2');
+            font-weight: 400;
+        }
+    </style>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #ffffff;
+            padding: 40px;
+            min-height: 100vh;
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-size: 32px;
+            margin-bottom: 40px;
+            text-align: center;
+            color: #D97706;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .option {
+            background: #111111;
+            border: 1px solid #222;
+            border-radius: 16px;
+            padding: 40px;
+            transition: border-color 0.3s;
+        }
+
+        .option:hover {
+            border-color: #D97706;
+        }
+
+        .option-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #222;
+        }
+
+        .option-title {
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #D97706;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .option-badge {
+            background: #D97706;
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .preview-section {
+            margin-bottom: 24px;
+        }
+
+        .preview-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .font-info {
+            font-family: 'Geist Mono', monospace;
+            font-size: 12px;
+            color: #444;
+            margin-top: 4px;
+        }
+
+        /* Option A: Coolvetica (using Oswald as similar) + Playfair + Inter */
+        .option-a .brand {
+            font-family: 'Oswald', sans-serif;
+            font-size: 72px;
+            font-weight: 500;
+            letter-spacing: 8px;
+        }
+
+        .option-a .headline {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-size: 36px;
+            font-weight: 400;
+        }
+
+        .option-a .body {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.6;
+            color: #999;
+        }
+
+        .option-a .code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            background: #1a1a1a;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: #D97706;
+        }
+
+        /* Option B: Instrument Serif + Inter */
+        .option-b .brand {
+            font-family: 'Instrument Serif', serif;
+            font-size: 72px;
+            font-weight: 400;
+        }
+
+        .option-b .headline {
+            font-family: 'Instrument Serif', serif;
+            font-size: 36px;
+            font-weight: 400;
+        }
+
+        .option-b .body {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.6;
+            color: #999;
+        }
+
+        .option-b .code {
+            font-family: 'Geist Mono', monospace;
+            font-size: 14px;
+            background: #1a1a1a;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: #D97706;
+        }
+
+        /* Option C: Bebas Neue + Space Grotesk */
+        .option-c .brand {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 72px;
+            font-weight: 400;
+            letter-spacing: 4px;
+        }
+
+        .option-c .headline {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 36px;
+            font-weight: 500;
+        }
+
+        .option-c .body {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.6;
+            color: #999;
+        }
+
+        .option-c .code {
+            font-family: 'Space Mono', monospace;
+            font-size: 14px;
+            background: #1a1a1a;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: #D97706;
+        }
+
+        /* Option D: Manrope (all) */
+        .option-d .brand {
+            font-family: 'Manrope', sans-serif;
+            font-size: 72px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .option-d .headline {
+            font-family: 'Manrope', sans-serif;
+            font-size: 36px;
+            font-weight: 600;
+        }
+
+        .option-d .body {
+            font-family: 'Manrope', sans-serif;
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.6;
+            color: #999;
+        }
+
+        .option-d .code {
+            font-family: 'Geist Mono', monospace;
+            font-size: 14px;
+            background: #1a1a1a;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: #D97706;
+        }
+
+        /* Option E: Geist (all) */
+        .option-e .brand {
+            font-family: 'Geist', sans-serif;
+            font-size: 72px;
+            font-weight: 700;
+            letter-spacing: 4px;
+        }
+
+        .option-e .headline {
+            font-family: 'Geist', sans-serif;
+            font-size: 36px;
+            font-weight: 600;
+        }
+
+        .option-e .body {
+            font-family: 'Geist', sans-serif;
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.6;
+            color: #999;
+        }
+
+        .option-e .code {
+            font-family: 'Geist Mono', monospace;
+            font-size: 14px;
+            background: #1a1a1a;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: #D97706;
+        }
+
+        /* Option F: Hybrid (Oswald + Playfair + Geist) */
+        .option-f .brand {
+            font-family: 'Oswald', sans-serif;
+            font-size: 72px;
+            font-weight: 500;
+            letter-spacing: 8px;
+        }
+
+        .option-f .section-title {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-size: 32px;
+            font-weight: 500;
+            color: #D97706;
+        }
+
+        .option-f .headline {
+            font-family: 'Geist', sans-serif;
+            font-size: 36px;
+            font-weight: 600;
+        }
+
+        .option-f .body {
+            font-family: 'Geist', sans-serif;
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.6;
+            color: #999;
+        }
+
+        .option-f .code {
+            font-family: 'Geist Mono', monospace;
+            font-size: 14px;
+            background: #1a1a1a;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: #D97706;
+        }
+
+        /* ASCII Art Preview */
+        .ascii-preview {
+            font-family: 'Geist Mono', monospace;
+            font-size: 10px;
+            line-height: 1;
+            letter-spacing: 2px;
+            white-space: pre;
+            color: #fff;
+            margin: 20px 0;
+            background: linear-gradient(90deg, #D97706, #fff, #D97706);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% 100%;
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        /* Color Preview */
+        .color-section {
+            margin-top: 60px;
+            padding-top: 40px;
+            border-top: 1px solid #222;
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .color-swatch {
+            height: 80px;
+            border-radius: 12px;
+            display: flex;
+            align-items: flex-end;
+            padding: 12px;
+        }
+
+        .color-label {
+            font-family: 'Geist Mono', monospace;
+            font-size: 11px;
+            color: inherit;
+            mix-blend-mode: difference;
+        }
+
+        /* Gradient Preview */
+        .gradient-preview {
+            height: 120px;
+            border-radius: 16px;
+            margin-top: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gradient-1 {
+            background: linear-gradient(135deg, #D97706 0%, #92400E 50%, #451A03 100%);
+        }
+
+        .gradient-2 {
+            background: linear-gradient(135deg, #D97706 0%, #F59E0B 50%, #FBBF24 100%);
+        }
+
+        .gradient-3 {
+            background: linear-gradient(90deg, #000 0%, #D97706 50%, #000 100%);
+        }
+
+        .cta-preview {
+            display: inline-block;
+            padding: 16px 32px;
+            border-radius: 100px;
+            font-family: 'Geist', sans-serif;
+            font-weight: 600;
+            font-size: 16px;
+            color: #000;
+            background: #D97706;
+            box-shadow: 0 8px 32px rgba(217, 119, 6, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .cta-preview:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(217, 119, 6, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <h1>BrewClaw Font Pairing Preview</h1>
+
+    <div class="options-grid">
+
+        <!-- Option A -->
+        <div class="option option-a">
+            <div class="option-header">
+                <span class="option-title">Option A: Coolvetica + Playfair + Inter</span>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Brand Name</div>
+                <div class="brand">BREWCLAW</div>
+                <div class="font-info">Oswald (similar to Coolvetica) · 72px · 500</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Headline</div>
+                <div class="headline">Deploy your personal AI assistant</div>
+                <div class="font-info">Playfair Display Italic · 36px · 400</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Body Text</div>
+                <div class="body">Your AI runs 24/7, ready to respond whenever you or your contacts need it. End-to-end encryption where supported. One-click install with no config files.</div>
+                <div class="font-info">Inter · 16px · 400</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Code</div>
+                <div class="code">npm install -g brewclaw</div>
+                <div class="font-info">JetBrains Mono · 14px</div>
+            </div>
+        </div>
+
+        <!-- Option B -->
+        <div class="option option-b">
+            <div class="option-header">
+                <span class="option-title">Option B: Instrument Serif + Inter (IronClaw Style)</span>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Brand Name</div>
+                <div class="brand">BREWCLAW</div>
+                <div class="font-info">Instrument Serif · 72px · 400</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Headline</div>
+                <div class="headline">Deploy your personal AI assistant</div>
+                <div class="font-info">Instrument Serif · 36px · 400</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Body Text</div>
+                <div class="body">Your AI runs 24/7, ready to respond whenever you or your contacts need it. End-to-end encryption where supported. One-click install with no config files.</div>
+                <div class="font-info">Inter · 16px · 400</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Code</div>
+                <div class="code">npm install -g brewclaw</div>
+                <div class="font-info">Geist Mono · 14px</div>
+            </div>
+        </div>
+
+        <!-- Option C -->
+        <div class="option option-c">
+            <div class="option-header">
+                <span class="option-title">Option C: Bebas Neue + Space Grotesk</span>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Brand Name</div>
+                <div class="brand">BREWCLAW</div>
+                <div class="font-info">Bebas Neue · 72px · 400</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Headline</div>
+                <div class="headline">Deploy your personal AI assistant</div>
+                <div class="font-info">Space Grotesk · 36px · 500</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Body Text</div>
+                <div class="body">Your AI runs 24/7, ready to respond whenever you or your contacts need it. End-to-end encryption where supported. One-click install with no config files.</div>
+                <div class="font-info">Space Grotesk · 16px · 400</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Code</div>
+                <div class="code">npm install -g brewclaw</div>
+                <div class="font-info">Space Mono · 14px</div>
+            </div>
+        </div>
+
+        <!-- Option D -->
+        <div class="option option-d">
+            <div class="option-header">
+                <span class="option-title">Option D: Manrope (All)</span>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Brand Name</div>
+                <div class="brand">BREWCLAW</div>
+                <div class="font-info">Manrope · 72px · 700</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Headline</div>
+                <div class="headline">Deploy your personal AI assistant</div>
+                <div class="font-info">Manrope · 36px · 600</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Body Text</div>
+                <div class="body">Your AI runs 24/7, ready to respond whenever you or your contacts need it. End-to-end encryption where supported. One-click install with no config files.</div>
+                <div class="font-info">Manrope · 16px · 400</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Code</div>
+                <div class="code">npm install -g brewclaw</div>
+                <div class="font-info">Geist Mono · 14px</div>
+            </div>
+        </div>
+
+        <!-- Option E -->
+        <div class="option option-e">
+            <div class="option-header">
+                <span class="option-title">Option E: Geist (All)</span>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Brand Name</div>
+                <div class="brand">BREWCLAW</div>
+                <div class="font-info">Geist · 72px · 700</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Headline</div>
+                <div class="headline">Deploy your personal AI assistant</div>
+                <div class="font-info">Geist · 36px · 600</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Body Text</div>
+                <div class="body">Your AI runs 24/7, ready to respond whenever you or your contacts need it. End-to-end encryption where supported. One-click install with no config files.</div>
+                <div class="font-info">Geist · 16px · 400</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Code</div>
+                <div class="code">npm install -g brewclaw</div>
+                <div class="font-info">Geist Mono · 14px</div>
+            </div>
+        </div>
+
+        <!-- Option F: Hybrid (Recommended) -->
+        <div class="option option-f">
+            <div class="option-header">
+                <span class="option-title">Option F: Hybrid Mix</span>
+                <span class="option-badge">Recommended</span>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Brand Name (ASCII Style with Shimmer)</div>
+                <div class="ascii-preview">
+██████╗ ██████╗ ███████╗██╗    ██╗ ██████╗██╗      █████╗ ██╗    ██╗
+██╔══██╗██╔══██╗██╔════╝██║    ██║██╔════╝██║     ██╔══██╗██║    ██║
+██████╔╝██████╔╝█████╗  ██║ █╗ ██║██║     ██║     ███████║██║ █╗ ██║
+██╔══██╗██╔══██╗██╔══╝  ██║███╗██║██║     ██║     ██╔══██║██║███╗██║
+██████╔╝██║  ██║███████╗╚███╔███╔╝╚██████╗███████╗██║  ██║╚███╔███╔╝
+╚═════╝ ╚═╝  ╚═╝╚══════╝ ╚══╝╚══╝  ╚═════╝╚══════╝╚═╝  ╚═╝ ╚══╝╚══╝
+                </div>
+                <div class="font-info">ASCII Art · Geist Mono · Shimmer Animation</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Section Titles</div>
+                <div class="section-title">What can BrewClaw do for you?</div>
+                <div class="font-info">Playfair Display Italic · 32px · 500 · Coffee Amber</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Headlines</div>
+                <div class="headline">Deploy your personal AI assistant</div>
+                <div class="font-info">Geist · 36px · 600</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Body Text</div>
+                <div class="body">Your AI runs 24/7, ready to respond whenever you or your contacts need it. End-to-end encryption where supported. One-click install with no config files.</div>
+                <div class="font-info">Geist · 16px · 400</div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-label">Code</div>
+                <div class="code">npm install -g brewclaw</div>
+                <div class="font-info">Geist Mono · 14px</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Color Section -->
+    <div class="color-section">
+        <h1>Color Palette: Coffee Amber Theme</h1>
+
+        <div class="color-grid">
+            <div class="color-swatch" style="background: #000000;">
+                <span class="color-label" style="color: #fff;">#000000 · Black</span>
+            </div>
+            <div class="color-swatch" style="background: #0A0A0A;">
+                <span class="color-label" style="color: #fff;">#0A0A0A · Near Black</span>
+            </div>
+            <div class="color-swatch" style="background: #111111;">
+                <span class="color-label" style="color: #fff;">#111111 · Card BG</span>
+            </div>
+            <div class="color-swatch" style="background: #1A1A1A;">
+                <span class="color-label" style="color: #fff;">#1A1A1A · Input BG</span>
+            </div>
+            <div class="color-swatch" style="background: #222222;">
+                <span class="color-label" style="color: #fff;">#222222 · Border</span>
+            </div>
+            <div class="color-swatch" style="background: #666666;">
+                <span class="color-label" style="color: #fff;">#666666 · Muted</span>
+            </div>
+            <div class="color-swatch" style="background: #999999;">
+                <span class="color-label" style="color: #000;">#999999 · Secondary</span>
+            </div>
+            <div class="color-swatch" style="background: #FFFFFF;">
+                <span class="color-label" style="color: #000;">#FFFFFF · White</span>
+            </div>
+        </div>
+
+        <h2 style="font-family: 'Playfair Display', serif; font-style: italic; margin-top: 40px; color: #D97706;">Coffee Amber Accents</h2>
+
+        <div class="color-grid">
+            <div class="color-swatch" style="background: #451A03;">
+                <span class="color-label" style="color: #fff;">#451A03 · Dark Roast</span>
+            </div>
+            <div class="color-swatch" style="background: #78350F;">
+                <span class="color-label" style="color: #fff;">#78350F · Espresso</span>
+            </div>
+            <div class="color-swatch" style="background: #92400E;">
+                <span class="color-label" style="color: #fff;">#92400E · Medium Roast</span>
+            </div>
+            <div class="color-swatch" style="background: #B45309;">
+                <span class="color-label" style="color: #fff;">#B45309 · Caramel</span>
+            </div>
+            <div class="color-swatch" style="background: #D97706;">
+                <span class="color-label" style="color: #000;">#D97706 · Primary Amber</span>
+            </div>
+            <div class="color-swatch" style="background: #F59E0B;">
+                <span class="color-label" style="color: #000;">#F59E0B · Light Amber</span>
+            </div>
+            <div class="color-swatch" style="background: #FBBF24;">
+                <span class="color-label" style="color: #000;">#FBBF24 · Golden</span>
+            </div>
+            <div class="color-swatch" style="background: #FCD34D;">
+                <span class="color-label" style="color: #000;">#FCD34D · Cream</span>
+            </div>
+        </div>
+
+        <h2 style="font-family: 'Playfair Display', serif; font-style: italic; margin-top: 40px; color: #D97706;">Gradient Options</h2>
+
+        <div class="gradient-preview gradient-1">
+            <span style="font-family: 'Geist', sans-serif; font-weight: 600;">Dark Roast Gradient</span>
+        </div>
+
+        <div class="gradient-preview gradient-2" style="margin-top: 16px;">
+            <span style="font-family: 'Geist', sans-serif; font-weight: 600; color: #000;">Golden Hour Gradient</span>
+        </div>
+
+        <div class="gradient-preview gradient-3" style="margin-top: 16px;">
+            <span style="font-family: 'Geist', sans-serif; font-weight: 600;">Spotlight Gradient</span>
+        </div>
+
+        <h2 style="font-family: 'Playfair Display', serif; font-style: italic; margin-top: 40px; color: #D97706;">CTA Button Preview</h2>
+
+        <div style="margin-top: 24px; text-align: center;">
+            <div class="cta-preview">Try it now for free</div>
+        </div>
+    </div>
+
+</body>
+</html>
